@@ -5,7 +5,7 @@
 #include "Commands.h"
 #include "signals.h"
 
-//git check: AK
+//git check2: AK
 
 int main(int argc, char* argv[]) {
     if(signal(SIGTSTP , ctrlZHandler) == SIG_ERR) {
