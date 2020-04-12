@@ -179,7 +179,7 @@ void ChangeDirCommand::execute(){
 	}
 	if(strcmp(command[1], "-") == 0) {
 		if(this->lastPwd == nullptr){
-			cout << "smash error: cd: OLDPWD not set";
+			cout << "smash error: cd: OLDPWD not set"<<endl;
 		} else {
 			char temp [COMMAND_ARGS_MAX_LENGTH] = {0};
 			getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
@@ -193,7 +193,7 @@ void ChangeDirCommand::execute(){
 	getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
 	int result = chdir(command[1]);
 	if(result == -1){
-		/*TODO*/
+		perror("smash error: chdir failed");
 	} else {
 		SmallShell& s = SmallShell::getInstance();
 		s.setPlastPwd(temp);
