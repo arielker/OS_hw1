@@ -1,5 +1,4 @@
 #include <unistd.h>
-#include <iostream>
 #include <sstream>
 #include <sys/wait.h>
 #include <iomanip>
@@ -110,12 +109,14 @@ BuiltInCommand::~BuiltInCommand(){
 
 ChangePromptCommand::ChangePromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
 	size_t new_size = 0;
-	if(numOfArgs == 2){
+	if(numOfArgs > 1) {
 		new_size = strlen(this->command[1]);
 		memcpy(this->prompt, command[1], new_size);
-	} else if (numOfArgs == 1){
+		this->numOfArgs = 2;
+	} else if (numOfArgs == 1) {
 		new_size = strlen("smash");
 		memcpy(this->prompt, this->smash, new_size);
+		this->numOfArgs = 1;
 	}
 }
 
@@ -134,7 +135,9 @@ ChangePromptCommand::~ChangePromptCommand(){
 //Show PID command
 //--------------------------------
 
-ShowPidCommand::ShowPidCommand(const char* cmd_line): BuiltInCommand(cmd_line){}
+ShowPidCommand::ShowPidCommand(const char* cmd_line): BuiltInCommand(cmd_line){
+	this->numOfArgs = 1;
+}
 
 ShowPidCommand::~ShowPidCommand(){
 	for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
@@ -143,14 +146,16 @@ ShowPidCommand::~ShowPidCommand(){
 }
 
 void ShowPidCommand::execute(){
-	int pid =  getpid();
-	std::cout << pid<<std::endl;
+	pid_t pid =  getpid();
+	std::cout << pid <<std::endl;
 }
 
 //--------------------------------
 // Get Current Directory Command
 //--------------------------------
-GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
+GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
+	this->numOfArgs = 1;
+}
 
 void GetCurrDirCommand::execute(){
 	char dirpath[COMMAND_ARGS_MAX_LENGTH];
@@ -166,7 +171,7 @@ ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd)
 : BuiltInCommand(cmd_line) {
 		if(plastPwd != nullptr && *plastPwd != nullptr){
 			this->lastPwd = (char*)(malloc(strlen(*plastPwd) + 1));
-			memcpy(this->lastPwd, *plastPwd, strlen(*plastPwd)+1);
+			memcpy(this->lastPwd, *plastPwd, strlen(*plastPwd) + 1);
 		} else {
 			this->lastPwd = nullptr;
 		}
@@ -182,7 +187,7 @@ void ChangeDirCommand::execute(){
 	}
 	if(strcmp(command[1], "-") == 0) {
 		if(this->lastPwd == nullptr){
-			cout << "smash error: cd: OLDPWD not set"<<endl;
+			cout << "smash error: cd: OLDPWD not set" << endl;
 		} else {
 			
 			chdir(this->lastPwd);
@@ -206,6 +211,67 @@ ChangeDirCommand::~ChangeDirCommand(){
 	}
 }
 
+//--------------------------------
+//Jobs list
+//--------------------------------
+
+JobsList::JobsList(){
+	vector<JobEntry*> jobs1;
+	this->jobs = jobs1;
+}
+
+JobsList::~JobsList(){
+	for(JobEntry* j : this->jobs){
+		delete j;
+	}
+	//delete this->jobs (vector) ?
+}
+
+void JobsList::addJob(Command* cmd, bool isStopped){
+	time_t t;
+	time(&t);
+	pid_t p = getpid();
+	JobEntry* j = new JobEntry(cmd->getCommand(), p, isStopped, t, cmd->getNumOfArgs());
+	(this->jobs).push_back(j);
+}
+
+void JobsList::printJobsList(){
+	int i = 1;
+	for(JobEntry* j : this->jobs){
+		if(j->getIsStopped()){
+			time_t t;
+			time(&t);
+			time_t elapsed = difftime(t, j->getTime());
+			cout<< "[" << i << "]";
+			j->printArgs(j->getJob(), j->getNumOfArgs());
+			cout << " : " << j->getPid() << " "
+			<< elapsed << " secs (stopped)" << endl;
+		} else {
+			time_t t;
+			time(&t);
+			time_t elapsed = difftime(t, j->getTime());
+			cout << "[" << i << "]";
+			j->printArgs(j->getJob(), j->getNumOfArgs());
+			cout << " : " << j->getPid() << " "
+			<< elapsed << " secs" << endl;
+		}
+		i++;
+	}
+}
+
+//--------------------------------
+//Jobs Command
+//--------------------------------
+
+JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs):
+BuiltInCommand(cmd_line){
+	j = jobs;
+}
+
+void JobsCommand::execute(){
+	j->printJobsList();
+}
+
 // TODO: Add your implementation for classes in Commands.h 
 
 
@@ -215,10 +281,12 @@ ChangeDirCommand::~ChangeDirCommand(){
 
 SmallShell::SmallShell() {
 // TODO: add your implementation
+	this->jobs = new JobsList();
 }
 
 SmallShell::~SmallShell() {
 	free(this->plastPwd);
+	delete this->jobs;
 // TODO: add your implementation
 }
 
@@ -240,8 +308,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	if(cmd_s.find("cd") == 0){
 		return new ChangeDirCommand(cmd_line, &(this->plastPwd));
 	}
+	SmallShell& smash = SmallShell::getInstance();
 	if(cmd_s.find("jobs") == 0){
-		//return new JobsCommand(cmd_line, /*TODO: JobsList *jobs  */);
+		return new JobsCommand(cmd_line, smash.getJobs());
 	}
 	if(cmd_s.find("kill") == 0){
 		//return new KillCommand(cmd_line, /*TODO: JobsList *jobs  */);
@@ -276,7 +345,11 @@ char* SmallShell::getlastPwd(){
 void SmallShell::setPlastPwd(char *pwd_new){
 	free(this->plastPwd);
 	this->plastPwd = (char*)(malloc((strlen(pwd_new) + 1)));
-	memcpy(this->plastPwd, pwd_new, strlen(pwd_new)+1);
+	memcpy(this->plastPwd, pwd_new, strlen(pwd_new) + 1);
+}
+
+JobsList* SmallShell::getJobs(){
+	return this->jobs;
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
@@ -287,5 +360,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
 	   return;
    }
    cmd->execute();
+   this->jobs->addJob(cmd);
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }

@@ -1,8 +1,13 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
 
+#include <iostream>
 #include <vector>
+#include <cstdlib>
+/* TODO: pay attention to this mind fuck "string"*/
+#include <string>
 #include <string.h>
+#include <time.h>
 
 using namespace std;
 
@@ -19,6 +24,12 @@ class Command {
   Command(const char* cmd_line);
   virtual ~Command();
   virtual void execute() = 0;
+  char** getCommand(){
+	  return this->command;
+  }
+  int getNumOfArgs(){
+	  return this->numOfArgs;
+  }
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
@@ -33,7 +44,7 @@ class BuiltInCommand : public Command {
 class ExternalCommand : public Command {
  public:
   ExternalCommand(const char* cmd_line);
-  virtual ~ExternalCommand() {}
+  virtual ~ExternalCommand() {} //TODO: implement
   void execute() override;
 };
 
@@ -109,9 +120,72 @@ class HistoryCommand : public BuiltInCommand {
 
 class JobsList {
  public:
+ //-----------
+ //JobEntry
+ //----------- 
   class JobEntry {
+	  char* job[COMMAND_MAX_ARGS];
+	  pid_t pid;
+	  bool isStopped;
+	  time_t time;
+	  int numOfArgs;
+	 public:
+	  JobEntry(char** j, pid_t p, bool iS, time_t t, int n): pid(p), 
+	  isStopped(iS), time(t), numOfArgs(n) {
+		  for (int i = 0; i < n; i++) {
+			this->job[i] = (char*)(malloc (strlen(j[i]) + 1));
+			memcpy(this->job[i], j[i], strlen(j[i]) + 1);
+		  }
+	  }
+	  
+	  ~JobEntry(){
+		  for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
+			  free(this->job[i]);
+		  }
+	  }
+	  
+	  void printArgs(char* a[COMMAND_MAX_ARGS], int n){
+		  for (int i = 0; i < n; i++) {
+			  cout << " " << string(a[i]);
+		  }
+	  }
+	  
+	  char** getJob(){
+		  return this->job;
+	  }
+	  
+	  pid_t getPid(){
+		  return this->pid;
+	  }
+	  
+	  bool getIsStopped(){
+		  return this->isStopped;
+	  }
+	  
+	  time_t getTime(){
+		  return this->time;
+	  }
+	  
+	  void setIsStopped(bool new_stopped){
+		  this->isStopped = new_stopped;
+	  }
+	  
+	  int getNumOfArgs (){
+		  return this->numOfArgs;
+	  }
+	  
+	  void setNumOfArgs(int n){
+		  this->numOfArgs = n;
+	  }
+	  
+	  //-----------
+	  //JobEntry
+  	  //----------- 
+	  
    // TODO: Add your data members
   };
+  private:
+		vector<JobEntry*> jobs;
  // TODO: Add your data members
  public:
   JobsList();
@@ -129,9 +203,10 @@ class JobsList {
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members
+	JobsList* j;
  public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~JobsCommand() {}
+  virtual ~JobsCommand() = default;
   void execute() override;
 };
 
@@ -173,7 +248,6 @@ class CopyCommand : public BuiltInCommand {
 class ChangePromptCommand : public BuiltInCommand {
 	const char* smash = "smash";
 	char prompt[80] = {0};
-	
 	public:
 		ChangePromptCommand(const char* cmd_line);
 		virtual ~ChangePromptCommand() override;
@@ -183,6 +257,7 @@ class ChangePromptCommand : public BuiltInCommand {
 class SmallShell {
  private:
   // TODO: Add your data members
+  JobsList* jobs;
   char prompt[80] = "smash";
   char *plastPwd = nullptr;
   SmallShell();
@@ -202,6 +277,7 @@ class SmallShell {
   char* getPrompt();
   char* getlastPwd();
   void setPlastPwd(char* pwd_new);
+  JobsList* getJobs();
   // TODO: add extra methods as needed
 };
 
