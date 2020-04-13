@@ -241,17 +241,22 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	if(cmd_s.find("cd") == 0){
 		return new ChangeDirCommand(cmd_line, &(this->plastPwd));
 	}
-/*
-  string cmd_s = string(cmd_line);
-  if (cmd_s.find("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
-  }
-  else if ...
-  .....
-  else {
-    return new ExternalCommand(cmd_line);
-  }
-  */
+	if(cmd_s.find("jobs") == 0){
+		//return new JobsCommand(cmd_line, /*TODO: JobsList *jobs  */);
+	}
+	if(cmd_s.find("kill") == 0){
+		//return new KillCommand(cmd_line, /*TODO: JobsList *jobs  */);
+	}
+	if(cmd_s.find("fg") == 0){
+		//return new ForegroundCommand(cmd_line, /*TODO: JobsList *jobs  */);
+	}
+	if(cmd_s.find("bg") == 0){
+		//return new BackgroundCommand(cmd_line, /*TODO: JobsList *jobs  */);
+	}
+	if(cmd_s.find("quit") == 0){
+		//return new QuitCommand(cmd_line, /*TODO: JobsList *jobs  */);
+	}
+
   return nullptr;
 }
 
