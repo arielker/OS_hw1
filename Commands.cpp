@@ -166,13 +166,16 @@ ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd)
 : BuiltInCommand(cmd_line) {
 		if(plastPwd != nullptr && *plastPwd != nullptr){
 			this->lastPwd = (char*)(malloc(strlen(*plastPwd) + 1));
-			memcpy(this->lastPwd, *plastPwd, strlen(*plastPwd));
+			memcpy(this->lastPwd, *plastPwd, strlen(*plastPwd)+1);
 		} else {
 			this->lastPwd = nullptr;
 		}
 }
 
 void ChangeDirCommand::execute(){
+	SmallShell& s = SmallShell::getInstance();
+	char temp [COMMAND_ARGS_MAX_LENGTH] = {0};
+	getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
 	if(numOfArgs > 2){
 		cout << "smash error: cd: too many arguments" << endl;
 		return;
@@ -181,21 +184,17 @@ void ChangeDirCommand::execute(){
 		if(this->lastPwd == nullptr){
 			cout << "smash error: cd: OLDPWD not set"<<endl;
 		} else {
-			char temp [COMMAND_ARGS_MAX_LENGTH] = {0};
-			getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
+			
 			chdir(this->lastPwd);
-			SmallShell& s = SmallShell::getInstance();
 			s.setPlastPwd(temp);
 		}
 		return;
 	}
-	char temp [COMMAND_ARGS_MAX_LENGTH] = {0};
-	getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
+	
 	int result = chdir(command[1]);
 	if(result == -1){
 		perror("smash error: chdir failed");
 	} else {
-		SmallShell& s = SmallShell::getInstance();
 		s.setPlastPwd(temp);
 	}
 }
@@ -277,7 +276,7 @@ char* SmallShell::getlastPwd(){
 void SmallShell::setPlastPwd(char *pwd_new){
 	free(this->plastPwd);
 	this->plastPwd = (char*)(malloc((strlen(pwd_new) + 1)));
-	memcpy(this->plastPwd, pwd_new, strlen(pwd_new));
+	memcpy(this->plastPwd, pwd_new, strlen(pwd_new)+1);
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
