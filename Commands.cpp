@@ -259,6 +259,11 @@ void JobsList::printJobsList(){
 	}
 }
 
+ JobsList::JobEntry* JobsList::getJobById(int jobId){
+		if(((int)(this->jobs).size()-1)<jobId ||jobId<0) return nullptr;
+		return (this->jobs)[jobId]; 
+	 }
+
 //--------------------------------
 //Jobs Command
 //--------------------------------
@@ -270,6 +275,59 @@ BuiltInCommand(cmd_line){
 
 void JobsCommand::execute(){
 	j->printJobsList();
+}
+//--------------------------------
+//Kill Command
+//--------------------------------
+
+KillCommand::KillCommand(const char* cmd_line, JobsList* jobs):
+BuiltInCommand(cmd_line){
+	j = jobs;
+}
+
+bool isCharNegativeNumber(char* s)
+{
+	char * t=s; 
+	if(*t!='-') return false;
+	t++;
+    for (; *t != '\0'; t++) {
+        if(!(*t>'0' && *t<'9')) return false;
+    }
+
+    return true;
+}
+bool isCharPositiveNumber(char* s)
+{
+	char * t; 
+    for (t=s; *t != '\0'; t++) {
+        if(!(*t>'0' && *t<'9')) return false;
+    }
+
+    return true;
+}
+
+void KillCommand::execute(){
+	SmallShell& s = SmallShell::getInstance();
+	if(numOfArgs > 3){
+		cout << "smash error: kill: invalid arguments" << endl;
+		return;
+	}
+	if(!isCharNegativeNumber(command[1]) || !isCharPositiveNumber(command[2])){
+		cout << "smash error: kill: invalid arguments" << endl;
+		return;
+	}
+	int signum=(-1)*(atoi( command[1]));
+	int job_id=atoi( command[2]);
+	JobsList::JobEntry* j_entry=s.getJobs()->getJobById(job_id);
+	if(j_entry==nullptr){
+		cout << "smash error: kill: job-id "<<job_id<<" does not exist" << endl;
+		return;
+	}
+	int j_pid=j_entry->getPid();
+	cout<<"signal number "<<signum<<" was sent to pid "<<j_pid<<endl;
+	if(kill(j_pid,signum) == -1){
+		perror("smash error: kill failed");
+	}
 }
 
 // TODO: Add your implementation for classes in Commands.h 
@@ -313,7 +371,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 		return new JobsCommand(cmd_line, smash.getJobs());
 	}
 	if(cmd_s.find("kill") == 0){
-		//return new KillCommand(cmd_line, /*TODO: JobsList *jobs  */);
+		return new KillCommand(cmd_line, smash.getJobs());
 	}
 	if(cmd_s.find("fg") == 0){
 		//return new ForegroundCommand(cmd_line, /*TODO: JobsList *jobs  */);
