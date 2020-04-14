@@ -308,7 +308,7 @@ bool isCharPositiveNumber(char* s)
 
 void KillCommand::execute(){
 	SmallShell& s = SmallShell::getInstance();
-	if(numOfArgs > 3){
+	if(numOfArgs != 3){
 		cout << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
