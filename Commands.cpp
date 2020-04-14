@@ -365,35 +365,52 @@ SmallShell::~SmallShell() {
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
+
+static void destroyTemp (char** a, int n){
+	for (int i = 0; i < n; i++) {
+		free(a[i]);
+	}
+}
+
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
-	string cmd_s = string(cmd_line);
-	if (cmd_s.find("chprompt")==0) {
+	char* temp[COMMAND_MAX_ARGS];
+	int n = _parseCommandLine(cmd_line, temp);
+	if (strcmp(temp[0], "chprompt") == 0) {
+		destroyTemp(temp, n);
 		return new ChangePromptCommand(cmd_line);
 	}
-	if (cmd_s.find("showpid") == 0) {
+	if (strcmp(temp[0], "showpid") == 0) {
+		destroyTemp(temp, n);
 		return new ShowPidCommand(cmd_line);
 	}
-	if (cmd_s.find("pwd") == 0) {
+	if (strcmp(temp[0], "pwd") == 0) {
+		destroyTemp(temp, n);
 		return new GetCurrDirCommand(cmd_line);
 	}
-	if(cmd_s.find("cd") == 0){
+	if(strcmp(temp[0], "cd") == 0){
+		destroyTemp(temp, n);
 		return new ChangeDirCommand(cmd_line, &(this->plastPwd));
 	}
 	SmallShell& smash = SmallShell::getInstance();
-	if(cmd_s.find("jobs") == 0){
+	if(strcmp(temp[0], "jobs") == 0){
+		destroyTemp(temp, n);
 		return new JobsCommand(cmd_line, smash.getJobs());
 	}
-	if(cmd_s.find("kill") == 0){
+	if(strcmp(temp[0], "kill") == 0){
+		destroyTemp(temp, n);
 		return new KillCommand(cmd_line, smash.getJobs());
 	}
-	if(cmd_s.find("fg") == 0){
+	if(strcmp(temp[0], "fg") == 0){
+		destroyTemp(temp, n);
 		//return new ForegroundCommand(cmd_line, /*TODO: JobsList *jobs  */);
 	}
-	if(cmd_s.find("bg") == 0){
+	if(strcmp(temp[0], "bg") == 0){
+		destroyTemp(temp, n);
 		//return new BackgroundCommand(cmd_line, /*TODO: JobsList *jobs  */);
 	}
-	if(cmd_s.find("quit") == 0){
+	if(strcmp(temp[0], "quit") == 0){
+		destroyTemp(temp, n);
 		//return new QuitCommand(cmd_line, /*TODO: JobsList *jobs  */);
 	}
 
