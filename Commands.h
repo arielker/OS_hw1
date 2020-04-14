@@ -97,27 +97,6 @@ class QuitCommand : public BuiltInCommand {
   bool execute() override;
 };
 
-class CommandsHistory {
- protected:
-  class CommandHistoryEntry {
-	  // TODO: Add your data members
-  };
- // TODO: Add your data members
- public:
-  CommandsHistory();
-  ~CommandsHistory() {}
-  void addRecord(const char* cmd_line);
-  void printHistory();
-};
-
-class HistoryCommand : public BuiltInCommand {
- // TODO: Add your data members
- public:
-  HistoryCommand(const char* cmd_line, CommandsHistory* history);
-  virtual ~HistoryCommand() {}
-  bool execute() override;
-};
-
 class JobsList {
  public:
  //-----------
@@ -177,12 +156,12 @@ class JobsList {
 	  void setNumOfArgs(int n){
 		  this->numOfArgs = n;
 	  }
-  	  //----------- 
-	  
+		//-----------
+		//JobEntry
+		//----------- 
   };
   private:
 		vector<JobEntry*> jobs;
-
  public:
   JobsList();
   ~JobsList();
@@ -192,8 +171,11 @@ class JobsList {
   void removeFinishedJobs();
   JobEntry * getJobById(int jobId); //done
   void removeJobById(int jobId);
-  JobEntry * getLastJob(int* lastJobId);
+  JobEntry * getLastJob(int* lastJobId); //done
   JobEntry *getLastStoppedJob(int *jobId);
+  vector<JobEntry*> getJobs(){
+	  return this->jobs;
+  }
   // TODO: Add extra methods or modify exisitng ones as needed
 };
 
@@ -210,15 +192,16 @@ class KillCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   KillCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~KillCommand() {}
+  virtual ~KillCommand() = default;
   bool execute() override;
 };
 
 class ForegroundCommand : public BuiltInCommand {
  // TODO: Add your data members
+	JobsList* j;
  public:
   ForegroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~ForegroundCommand() {}
+  virtual ~ForegroundCommand() = default;
   bool execute() override;
 };
 

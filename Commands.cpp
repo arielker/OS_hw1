@@ -268,8 +268,8 @@ void JobsList::printJobsList(){
 		if(((int)(this->jobs).size() - 1) < jobId || jobId < 0){
 			 return nullptr;
 		}
-		return (this->jobs)[jobId]; 
-	 }
+		return (this->jobs)[jobId - 1]; 
+}
 
 //--------------------------------
 //Jobs Command
@@ -284,6 +284,13 @@ bool JobsCommand::execute(){
 	j->printJobsList();
 	return true;
 }
+
+JobEntry* JobsList::getLastJob(int* last_job_id){
+	int size = this->jobs.size();
+	*last_job_id = size - 1;
+	return this->jobs[size - 1];
+}
+
 //--------------------------------
 //Kill Command
 //--------------------------------
@@ -344,6 +351,51 @@ bool KillCommand::execute(){
 	return true;
 }
 
+//--------------------------------
+//foreground command
+//--------------------------------
+
+ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs)
+: BuiltInCommand(cmd_line) {
+	this->j = jobs;
+}
+
+bool ForegroundCommand::execute(){
+	if((this->j)->getJobs().empty() && this->numOfArgs == 1){
+		cout<< "smash error: fg: jobs list is empty" << endl;
+		return false;
+	}
+	if(this->numOfArgs > 2 || !isCharPositiveNumber(this->command[1])){
+		cout<< "smash error: fg: invalid arguments" <<endl;
+		return false;
+	}
+	int* last_job_id;
+	if(this->numOfArgs == 2){
+		int job_id = int(*(this->command[1]));
+		SmallShell& s = SmallShell::getInstance();
+		JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
+		if(j_entry == nullptr){
+			cout << "smash error: fg: job-id "<<job_id<<" does not exist" << endl;
+			return false;
+		}
+		int pid = j_entry->getPid();
+		j_entry->printArgs(this->getCommand(), this->getNumOfArgs());
+		cout << " : " << pid << endl;
+		this->j->erase(job_id - 1);
+		kill(pid, SIGCONT);
+		//waitpid()
+		return true;
+	} else if (this->numOfArgs == 1){
+		JobsList::JobEntry* j_entry = this->j->getLastJob(last_job_id);
+		j_entry->printArgs(this->getCommand(), this->getNumOfArgs());
+		cout << " : " << pid << endl;
+		this->j->erase(*last_job_id - 1);
+		kill(j_entry->getPid(), SIGCONT);
+		//waitpid()
+	}
+	return true;
+}
+
 // TODO: Add your implementation for classes in Commands.h 
 
 
@@ -374,7 +426,7 @@ static void destroyTemp (char** a, int n){
 
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
-	char* temp[COMMAND_MAX_ARGS];
+	char* temp[COMMAND_MAX_ARGS] = {0};
 	int n = _parseCommandLine(cmd_line, temp);
 	if (strcmp(temp[0], "chprompt") == 0) {
 		destroyTemp(temp, n);
@@ -403,7 +455,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	}
 	if(strcmp(temp[0], "fg") == 0){
 		destroyTemp(temp, n);
-		//return new ForegroundCommand(cmd_line, /*TODO: JobsList *jobs  */);
+		return new ForegroundCommand(cmd_line, smash.getJobs());
 	}
 	if(strcmp(temp[0], "bg") == 0){
 		destroyTemp(temp, n);
@@ -413,7 +465,6 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 		destroyTemp(temp, n);
 		//return new QuitCommand(cmd_line, /*TODO: JobsList *jobs  */);
 	}
-
   return nullptr;
 }
 
@@ -451,6 +502,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
    bool ok = cmd->execute();
    if (ok){
 	   this->jobs->addJob(cmd);
-  }
+	}
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
