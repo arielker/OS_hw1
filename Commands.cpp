@@ -120,9 +120,10 @@ ChangePromptCommand::ChangePromptCommand(const char* cmd_line) : BuiltInCommand(
 	}
 }
 
-void ChangePromptCommand::execute(){
+bool ChangePromptCommand::execute(){
 	SmallShell& s = SmallShell::getInstance();
 	s.setPrompt(this->prompt);
+	return true;
 }
 
 ChangePromptCommand::~ChangePromptCommand(){
@@ -145,9 +146,10 @@ ShowPidCommand::~ShowPidCommand(){
 	}
 }
 
-void ShowPidCommand::execute(){
+bool ShowPidCommand::execute(){
 	pid_t pid =  getpid();
 	std::cout << pid <<std::endl;
+	return true;
 }
 
 //--------------------------------
@@ -157,10 +159,11 @@ GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_
 	this->numOfArgs = 1;
 }
 
-void GetCurrDirCommand::execute(){
+bool GetCurrDirCommand::execute(){
 	char dirpath[COMMAND_ARGS_MAX_LENGTH];
 	getcwd(dirpath,COMMAND_ARGS_MAX_LENGTH);
 	std::cout << dirpath<<std::endl;
+	return true;
 }
 
 //--------------------------------
@@ -177,31 +180,33 @@ ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd)
 		}
 }
 
-void ChangeDirCommand::execute(){
+bool ChangeDirCommand::execute(){
 	SmallShell& s = SmallShell::getInstance();
 	char temp [COMMAND_ARGS_MAX_LENGTH] = {0};
 	getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
 	if(numOfArgs > 2){
 		cout << "smash error: cd: too many arguments" << endl;
-		return;
+		return false;
 	}
 	if(strcmp(command[1], "-") == 0) {
 		if(this->lastPwd == nullptr){
 			cout << "smash error: cd: OLDPWD not set" << endl;
+			return false;
 		} else {
-			
 			chdir(this->lastPwd);
 			s.setPlastPwd(temp);
 		}
-		return;
+		return true;
 	}
-	
 	int result = chdir(command[1]);
 	if(result == -1){
 		perror("smash error: chdir failed");
+		return false;
 	} else {
 		s.setPlastPwd(temp);
+		return true;
 	}
+	return true;
 }
 
 ChangeDirCommand::~ChangeDirCommand(){
@@ -260,7 +265,9 @@ void JobsList::printJobsList(){
 }
 
  JobsList::JobEntry* JobsList::getJobById(int jobId){
-		if(((int)(this->jobs).size()-1)<jobId ||jobId<0) return nullptr;
+		if(((int)(this->jobs).size() - 1) < jobId || jobId < 0){
+			 return nullptr;
+		}
 		return (this->jobs)[jobId]; 
 	 }
 
@@ -273,8 +280,9 @@ BuiltInCommand(cmd_line){
 	j = jobs;
 }
 
-void JobsCommand::execute(){
+bool JobsCommand::execute(){
 	j->printJobsList();
+	return true;
 }
 //--------------------------------
 //Kill Command
@@ -285,49 +293,55 @@ BuiltInCommand(cmd_line){
 	j = jobs;
 }
 
-bool isCharNegativeNumber(char* s)
-{
+bool isCharNegativeNumber(char* s) {
 	char * t=s; 
-	if(*t!='-') return false;
+	if(*t!='-') {
+		 return false;
+	}
 	t++;
     for (; *t != '\0'; t++) {
-        if(!(*t>'0' && *t<'9')) return false;
-    }
-
+        if(!(*t>'0' && *t<'9')) {
+			return false;
+		}
+	}
     return true;
 }
-bool isCharPositiveNumber(char* s)
-{
+
+
+bool isCharPositiveNumber(char* s) {
 	char * t; 
     for (t=s; *t != '\0'; t++) {
-        if(!(*t>'0' && *t<'9')) return false;
-    }
-
+        if(!(*t>'0' && *t<'9')){
+			 return false;
+		}
+	}
     return true;
 }
 
-void KillCommand::execute(){
+bool KillCommand::execute(){
 	SmallShell& s = SmallShell::getInstance();
 	if(numOfArgs != 3){
 		cout << "smash error: kill: invalid arguments" << endl;
-		return;
+		return false;
 	}
 	if(!isCharNegativeNumber(command[1]) || !isCharPositiveNumber(command[2])){
 		cout << "smash error: kill: invalid arguments" << endl;
-		return;
+		return false;
 	}
-	int signum=(-1)*(atoi( command[1]));
-	int job_id=atoi( command[2]);
+	int signum = (-1)*(atoi(command[1]));
+	int job_id = atoi(command[2]);
 	JobsList::JobEntry* j_entry=s.getJobs()->getJobById(job_id);
-	if(j_entry==nullptr){
+	if(j_entry == nullptr){
 		cout << "smash error: kill: job-id "<<job_id<<" does not exist" << endl;
-		return;
+		return false;
 	}
-	int j_pid=j_entry->getPid();
+	int j_pid = j_entry->getPid();
 	cout<<"signal number "<<signum<<" was sent to pid "<<j_pid<<endl;
 	if(kill(j_pid,signum) == -1){
 		perror("smash error: kill failed");
+		return false;
 	}
+	return true;
 }
 
 // TODO: Add your implementation for classes in Commands.h 
@@ -417,7 +431,9 @@ void SmallShell::executeCommand(const char *cmd_line) {
    if(nullptr == cmd){
 	   return;
    }
-   cmd->execute();
-   this->jobs->addJob(cmd);
+   bool ok = cmd->execute();
+   if (ok){
+	   this->jobs->addJob(cmd);
+  }
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
