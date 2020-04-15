@@ -91,10 +91,11 @@ class ShowPidCommand : public BuiltInCommand {
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members public:
-  QuitCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~QuitCommand() {}
-  bool execute() override;
+	JobsList* j;
+	public:
+		QuitCommand(const char* cmd_line, JobsList* jobs);
+		virtual ~QuitCommand() = default;
+		bool execute() override;
 };
 
 class JobsList {
@@ -149,7 +150,7 @@ class JobsList {
 		  this->isStopped = new_stopped;
 	  }
 	  
-	  int getNumOfArgs (){
+	  int getNumOfArgs(){
 		  return this->numOfArgs;
 	  }
 	  
@@ -170,8 +171,8 @@ class JobsList {
   void killAllJobs();
   void removeFinishedJobs();
   JobEntry * getJobById(int jobId); //done
-  void removeJobById(int jobId);
-  JobEntry * getLastJob(int* lastJobId); //done
+  void removeJobById(int jobId); //done
+  JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
   vector<JobEntry*> getJobs(){
 	  return this->jobs;
@@ -207,6 +208,7 @@ class ForegroundCommand : public BuiltInCommand {
 
 class BackgroundCommand : public BuiltInCommand {
  // TODO: Add your data members
+	JobsList* j;
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~BackgroundCommand() {}
