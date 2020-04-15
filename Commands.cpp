@@ -108,11 +108,16 @@ BuiltInCommand::~BuiltInCommand(){
 //--------------------------------
 
 ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line){
-	//take care "-c" flag
+	int binbashsize = strlen(this->bin_bash);
+	this->external_args[0] = (char *)(malloc(binbashsize + 1));
+	memset(external_args[0], 0, binbashsize + 1);
+	memcpy(external_args[0], this->bin_bash, binbashsize + 1);
+	
+	
 	int c_flag_size = strlen(this->c_flag);
-	this->external_args[0] = (char *)(malloc(c_flag_size + 1));
-	memset(external_args[0], 0, c_flag_size + 1);
-	memcpy(external_args[0], this->c_flag, c_flag_size + 1);
+	this->external_args[1] = (char *)(malloc(c_flag_size + 1));
+	memset(external_args[1], 0, c_flag_size + 1);
+	memcpy(external_args[1], this->c_flag, c_flag_size + 1);
 	
 	this->is_background = _isBackgroundComamnd(cmd_line); //check bg command...
 	char* temp_cmd = const_cast<char*>(cmd_line);
@@ -121,10 +126,10 @@ ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line){
 	}
 	
 	int cmd_size = strlen(temp_cmd);
-	this->external_args[1] = (char *)(malloc(cmd_size + 1));
-	memset(external_args[1], 0, cmd_size + 1);
-	memcpy(external_args[1], temp_cmd, cmd_size + 1);
-	external_args[2] = nullptr;
+	this->external_args[2] = (char *)(malloc(cmd_size + 1));
+	memset(external_args[2], 0, cmd_size + 1);
+	memcpy(external_args[2], temp_cmd, cmd_size + 1);
+	external_args[3] = NULL;
 }
 
 ExternalCommand::~ExternalCommand(){
@@ -133,13 +138,10 @@ ExternalCommand::~ExternalCommand(){
 	}
 	free(external_args[0]);
 	free(external_args[1]);
+	free(external_args[2]);
 }
 
 void ExternalCommand::execute() {
-	cout << external_args[0] << endl;
-	cout << external_args[1] << endl;
-	cout << external_args[2] << endl;
-	cout << this->is_background << endl;
 	if(!(this->is_background)) {
 		if (fork() == 0) {
 			int result = execv(this->bin_bash, this->external_args);

@@ -45,7 +45,7 @@ class BuiltInCommand : public Command {
 class ExternalCommand : public Command {
 	const char* c_flag = "-c";
 	const char* bin_bash = "/bin/bash";
-	char* external_args[3];
+	char* external_args[4];
  public:
   ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand(); //TODO: implement
