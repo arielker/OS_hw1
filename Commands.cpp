@@ -3,6 +3,7 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+#include <signal.h>
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
@@ -142,24 +143,29 @@ ExternalCommand::~ExternalCommand(){
 }
 
 void ExternalCommand::execute() {
+	SmallShell& smash = SmallShell::getInstance();
 	if(!(this->is_background)) {
-		if (fork() == 0) {
+		pid_t pid = fork();
+		if (pid == 0) {
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1){
 				perror("smash error: execv failed");
 			}
-		} else {
+		} else if (pid > 0) {
 			wait(nullptr);
+		} else{
+			perror("smash error: fork failed");
 		}
 	} else {
-		if (fork() == 0) {
+		pid_t pid = fork();
+		smash.getJobs()->addJob(this,pid);
+		if (pid == 0) {
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1){
 				perror("smash error: execv failed");
-			} else {
-				SmallShell& smash = SmallShell::getInstance();
-				smash.getJobs()->addJob(this);
 			}
+		} else if (pid < 0){
+			perror("smash error: fork failed");
 		}
 	}
 }
@@ -293,15 +299,16 @@ JobsList::~JobsList(){
 	//delete this->jobs (vector) ?
 }
 
-void JobsList::addJob(Command* cmd, bool isStopped){
+void JobsList::addJob(Command* cmd,pid_t pid, bool isStopped){
 	time_t t;
 	time(&t);
-	pid_t p = getpid();
+	pid_t p = pid;
 	JobEntry* j = new JobEntry(cmd->getCommand(), p, isStopped, t, cmd->getNumOfArgs());
 	(this->jobs).push_back(j);
 }
 
 void JobsList::printJobsList(){
+	this->removeFinishedJobs();
 	int i = 1;
 	for(JobEntry* j : this->jobs){
 		if(j->getIsStopped()){
@@ -333,11 +340,14 @@ void JobsList::printJobsList(){
 }
 
 void JobsList::removeJobById(int jobId){
+	//jobId means the place in the vector minus 1
 	int size = this->jobs.size();
 	if(jobId < 1 || jobId > size){
 		return;
 	}
+	JobEntry* temp = this->jobs[jobId - 1];
 	this->jobs.erase(this->jobs.begin() + (jobId - 1));
+	delete temp;
 }
 
 JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
@@ -373,6 +383,16 @@ void JobsList::killAllJobs(){
 		(*it)->printArgs((*it)->getJob(), (*it)->getNumOfArgs());
 		cout<<endl;
 		kill((*it)->getPid(),SIGKILL);
+	}
+}
+
+void JobsList::removeFinishedJobs(){
+	int i = 1;
+	for(JobEntry* j :this->jobs){
+		if(kill(j->getPid(), 0) == -1 || waitpid(j->getPid(), nullptr, WNOHANG)) {
+			removeJobById(i);
+		}
+		i++;
 	}
 }
 

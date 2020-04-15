@@ -170,9 +170,9 @@ class JobsList {
  public:
   JobsList();
   ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false); //done
+  void addJob(Command* cmd, pid_t pid, bool isStopped = false); //done
   void printJobsList(); //done
-  void killAllJobs();
+  void killAllJobs(); //done
   void removeFinishedJobs();
   JobEntry * getJobById(int jobId); //done
   void removeJobById(int jobId); //done
