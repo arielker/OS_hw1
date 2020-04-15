@@ -17,13 +17,14 @@ using namespace std;
 
 class Command {
  protected:
+	bool is_background;
 	char* command [COMMAND_MAX_ARGS];
 	int numOfArgs;
 // TODO: Add your data members
  public:
   Command(const char* cmd_line);
   virtual ~Command();
-  virtual bool execute() = 0;
+  virtual void execute() = 0;
   char** getCommand(){
 	  return this->command;
   }
@@ -42,10 +43,13 @@ class BuiltInCommand : public Command {
 };
 
 class ExternalCommand : public Command {
+	const char* c_flag = "-c";
+	const char* bin_bash = "/bin/bash";
+	char* external_args[3];
  public:
   ExternalCommand(const char* cmd_line);
-  virtual ~ExternalCommand() {} //TODO: implement
-  bool execute() override;
+  virtual ~ExternalCommand(); //TODO: implement
+  void execute() override;
 };
 
 class PipeCommand : public Command {
@@ -53,7 +57,7 @@ class PipeCommand : public Command {
  public:
   PipeCommand(const char* cmd_line);
   virtual ~PipeCommand() {}
-  bool execute() override;
+  void execute() override;
 };
 
 class RedirectionCommand : public Command {
@@ -61,7 +65,7 @@ class RedirectionCommand : public Command {
  public:
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand() {}
-  bool execute() override;
+  void execute() override;
   //void prepare() override;
   //void cleanup() override;
 };
@@ -72,21 +76,21 @@ class ChangeDirCommand : public BuiltInCommand {
 	public:
 	  ChangeDirCommand(const char* cmd_line, char** plastPwd);
 	  virtual ~ChangeDirCommand() override;
-	  bool execute() override;
+	  void execute() override;
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
  public:
   GetCurrDirCommand(const char* cmd_line);
   virtual ~GetCurrDirCommand() = default;
-  bool execute() override;
+  void execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand {
  public:
   ShowPidCommand(const char* cmd_line);
   virtual ~ShowPidCommand();
-  bool execute() override;
+  void execute() override;
 };
 
 class JobsList;
@@ -95,7 +99,7 @@ class QuitCommand : public BuiltInCommand {
 	public:
 		QuitCommand(const char* cmd_line, JobsList* jobs);
 		virtual ~QuitCommand() = default;
-		bool execute() override;
+		void execute() override;
 };
 
 class JobsList {
@@ -186,7 +190,7 @@ class JobsCommand : public BuiltInCommand {
  public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
   virtual ~JobsCommand() = default;
-  bool execute() override;
+  void execute() override;
 };
 
 class KillCommand : public BuiltInCommand {
@@ -194,7 +198,7 @@ class KillCommand : public BuiltInCommand {
  public:
   KillCommand(const char* cmd_line, JobsList* jobs);
   virtual ~KillCommand() = default;
-  bool execute() override;
+  void execute() override;
 };
 
 class ForegroundCommand : public BuiltInCommand {
@@ -203,7 +207,7 @@ class ForegroundCommand : public BuiltInCommand {
  public:
   ForegroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~ForegroundCommand() = default;
-  bool execute() override;
+  void execute() override;
 };
 
 class BackgroundCommand : public BuiltInCommand {
@@ -212,7 +216,7 @@ class BackgroundCommand : public BuiltInCommand {
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~BackgroundCommand() {}
-  bool execute() override;
+  void execute() override;
 };
 
 
@@ -221,7 +225,7 @@ class CopyCommand : public BuiltInCommand {
  public:
   CopyCommand(const char* cmd_line);
   virtual ~CopyCommand() {}
-  bool execute() override;
+  void execute() override;
 };
 
 // TODO: add more classes if needed 
@@ -233,7 +237,7 @@ class ChangePromptCommand : public BuiltInCommand {
 	public:
 		ChangePromptCommand(const char* cmd_line);
 		virtual ~ChangePromptCommand() override;
-		bool execute() override;
+		void execute() override;
 };
 
 class SmallShell {
