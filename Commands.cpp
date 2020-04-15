@@ -3,7 +3,6 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
-#include <signal.h>
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
@@ -340,16 +339,26 @@ void JobsList::printJobsList(){
 }
 
 void JobsList::removeJobById(int jobId){
-	//jobId means the place in the vector minus 1
 	int size = this->jobs.size();
 	if(jobId < 1 || jobId > size){
 		return;
 	}
-	JobEntry* temp = this->jobs[jobId - 1];
 	this->jobs.erase(this->jobs.begin() + (jobId - 1));
-	delete temp;
 }
-
+void JobsList::removeFinishedJobs(){
+	int i=1;
+		for (JobEntry* j: this->jobs)
+		{
+			if(kill(j->getPid(),0)==-1 || waitpid(j->getPid(),nullptr,WNOHANG))
+			{ 
+				removeJobById(i);
+			}
+			else{
+				i++;
+			}
+		}
+		
+ }
 JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
 	if(this->jobs.empty()){
 		return nullptr;
@@ -386,17 +395,6 @@ void JobsList::killAllJobs(){
 	}
 }
 
-void JobsList::removeFinishedJobs(){
-	int i = 1;
-	for(JobEntry* j :this->jobs){
-		if(kill(j->getPid(), 0) == -1 || waitpid(j->getPid(), nullptr, WNOHANG)) {
-			removeJobById(i);
-			continue;
-		}
-		i++;
-	}
-}
-
 //--------------------------------
 //Jobs Command
 //--------------------------------
@@ -425,30 +423,6 @@ BuiltInCommand(cmd_line){
 	j = jobs;
 }
 
-/*bool isCharNegativeNumber(char* s) {
-	char * t=s; 
-	if(*t!='-') {
-		 return false;
-	}
-	t++;
-    for (; *t != '\0'; t++) {
-        if(!(*t>'0' && *t<'9')) {
-			return false;
-		}
-	}
-    return true;
-}
-
-
-bool isCharPositiveNumber(char* s) {
-	char * t; 
-    for (t=s; *t != '\0'; t++) {
-        if(!(*t>'0' && *t<'9')){
-			 return false;
-		}
-	}
-    return true;
-}*/
 
 void KillCommand::execute(){
 	SmallShell& s = SmallShell::getInstance();
