@@ -391,6 +391,7 @@ void JobsList::removeFinishedJobs(){
 	for(JobEntry* j :this->jobs){
 		if(kill(j->getPid(), 0) == -1 || waitpid(j->getPid(), nullptr, WNOHANG)) {
 			removeJobById(i);
+			continue;
 		}
 		i++;
 	}
