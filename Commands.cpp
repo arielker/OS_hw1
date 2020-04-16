@@ -1,17 +1,16 @@
-#include <unistd.h>
 #include <sstream>
-#include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+#include <signal.h>
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
 #if 0
 #define FUNC_ENTRY()  \
-  cerr << _PRETTY_FUNCTION_ << " --> " << endl;
+  cerr << PRETTY_FUNCTION << " --> " << endl;
 
 #define FUNC_EXIT()  \
-  cerr << _PRETTY_FUNCTION_ << " <-- " << endl;
+  cerr << PRETTY_FUNCTION << " <-- " << endl;
 #else
 #define FUNC_ENTRY()
 #define FUNC_EXIT()
@@ -146,19 +145,25 @@ void ExternalCommand::execute() {
 	if(!(this->is_background)) {
 		pid_t pid = fork();
 		if (pid == 0) {
+			setpgrp();
 			int result = execv(this->bin_bash, this->external_args);
-			if(result == -1){
+			if(result == -1) {
 				perror("smash error: execv failed");
+				smash.setCurrentFgPid(smash.getSmashPid());
 			}
 		} else if (pid > 0) {
-			wait(nullptr);
+			smash.setCurrentFgPid(pid);
+			waitpid(pid, nullptr, WUNTRACED);
+			smash.setCurrentFgPid(smash.getSmashPid());
 		} else{
 			perror("smash error: fork failed");
+			smash.setCurrentFgPid(smash.getSmashPid());
 		}
 	} else {
 		pid_t pid = fork();
 		smash.getJobs()->addJob(this,pid);
 		if (pid == 0) {
+			setpgrp();
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1){
 				perror("smash error: execv failed");
@@ -299,10 +304,11 @@ JobsList::~JobsList(){
 }
 
 void JobsList::addJob(Command* cmd,pid_t pid, bool isStopped){
+	this->removeFinishedJobs();
 	time_t t;
 	time(&t);
 	pid_t p = pid;
-	JobEntry* j = new JobEntry(cmd->getCommand(), p, isStopped, t, cmd->getNumOfArgs());
+	JobEntry* j = new JobEntry(cmd,cmd->getCommand(), p, isStopped, t, cmd->getNumOfArgs());
 	(this->jobs).push_back(j);
 }
 
@@ -332,34 +338,27 @@ void JobsList::printJobsList(){
 }
 
  JobsList::JobEntry* JobsList::getJobById(int jobId){
-		if(((int)(this->jobs).size()) < jobId || jobId < 0){
-			 return nullptr;
-		}
-		return (this->jobs)[jobId - 1]; 
+	this->removeFinishedJobs();
+	if(((int)(this->jobs).size()) < jobId || jobId < 0){
+		 return nullptr;
+	}
+	return (this->jobs)[jobId - 1]; 
 }
 
 void JobsList::removeJobById(int jobId){
+	this->removeFinishedJobs();
+	//jobId means the place in the vector minus 1
 	int size = this->jobs.size();
 	if(jobId < 1 || jobId > size){
 		return;
 	}
+	JobEntry* temp = this->jobs[jobId - 1];
 	this->jobs.erase(this->jobs.begin() + (jobId - 1));
+	delete temp;
 }
-void JobsList::removeFinishedJobs(){
-	int i=1;
-		for (JobEntry* j: this->jobs)
-		{
-			if(kill(j->getPid(),0)==-1 || waitpid(j->getPid(),nullptr,WNOHANG))
-			{ 
-				removeJobById(i);
-			}
-			else{
-				i++;
-			}
-		}
-		
- }
+
 JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
+	this->removeFinishedJobs();
 	if(this->jobs.empty()){
 		return nullptr;
 	}
@@ -383,6 +382,7 @@ JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
 void JobsList::killAllJobs(){
 	//THIS FUNCTION IS USED BY QUIT COMMAND EXECUTE ACCORDING TO ITS
 	//SYNTAX! DO NOT CHANGE THIS BEFORE CHANGING QUIT COMMAND EXECUTE!
+	this->removeFinishedJobs();
 	int numOfJobs=this->getJobs().size();
 	cout<<"smash: sending SIGKILL signal to "<<numOfJobs<<" jobs:"<<endl;
 	for (vector<JobEntry*>::iterator it = jobs.begin() ; it != jobs.end(); ++it)
@@ -392,6 +392,19 @@ void JobsList::killAllJobs(){
 		(*it)->printArgs((*it)->getJob(), (*it)->getNumOfArgs());
 		cout<<endl;
 		kill((*it)->getPid(),SIGKILL);
+	}
+}
+
+void JobsList::removeFinishedJobs(){
+	int i = 1;
+	for(JobEntry* j :this->jobs){
+		if(kill(j->getPid(), 0) == -1 || waitpid(j->getPid(), nullptr, WNOHANG)) {
+			JobEntry* temp = this->jobs[i - 1];
+			this->jobs.erase(this->jobs.begin() + (i - 1));
+			delete temp;
+			continue;
+		}
+		i++;
 	}
 }
 
@@ -409,8 +422,11 @@ void JobsCommand::execute(){
 }
 
 JobsList::JobEntry* JobsList::getLastJob(int* last_job_id){
+	if(this->jobs.empty()){
+		return nullptr;
+	}
 	int size = this->jobs.size();
-	*last_job_id = size - 1;
+	*last_job_id = size;
 	return this->jobs[size - 1];
 }
 
@@ -459,46 +475,70 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs)
 }
 
 void ForegroundCommand::execute(){
-	if((this->j)->getJobs().empty() && this->numOfArgs == 1){
+	if(nullptr == this->j){
+		cout<< "smash error: fg: jobs list is empty" << endl;
+	}
+	if(this->j->getJobs().empty() && this->numOfArgs == 1){
 		cout<< "smash error: fg: jobs list is empty" << endl;
 		return;
 	}
-	int temp = atoi(this->command[1]);
-	if((this->numOfArgs > 2) || (this->numOfArgs == 2 && temp <= 0)){
+	if(this->numOfArgs > 2) {
 		cout<< "smash error: fg: invalid arguments" <<endl;
 		return;
 	}
+	if(this->numOfArgs == 2 && atoi(this->command[1]) <= 0) {
+		cout<< "smash error: fg: invalid arguments" <<endl;
+		return;
+
+	}
 	int last_job_id = 0;
+	SmallShell& s = SmallShell::getInstance();
 	if(this->numOfArgs == 2){
 		int job_id = atoi(this->command[1]);
-		SmallShell& s = SmallShell::getInstance();
 		JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
 		if(j_entry == nullptr){
 			cout << "smash error: fg: job-id "<<job_id<<" does not exist" << endl;
 			return;
 		}
 		pid_t pid = j_entry->getPid();
-		j_entry->printArgs((j_entry->getJob()), j_entry->getNumOfArgs());
+		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
 		cout << " : " << pid << endl;
-		this->j->removeJobById(job_id - 1);
-		kill(pid, SIGCONT);
+		
+		if(kill(pid, SIGCONT) == 0){
+			s.setCurrentFgPid(pid);
+		} else {
+			perror("smash error: kill failed");
+			return;
+		}
 		int wstatus = 0;
-		pid_t result = waitpid(pid, &wstatus, WCONTINUED); //TODO: parse if we got Ctrl + Z
+		s.setCurrentCommand(j_entry->getCmd());
+		pid_t result = waitpid(pid, &wstatus, WUNTRACED); //TODO: parse if we got Ctrl + Z
 		if(result != pid){
 			perror("smash error: waitpid failed");
 			return;
 		}
+		this->j->removeJobById(job_id);
+		
 	} else if (this->numOfArgs == 1) {
 		JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
-		j_entry->printArgs((j_entry->getJob()), j_entry->getNumOfArgs());
+		if(nullptr == j_entry){
+			cout << "smash error: fg: jobs list is empty" << endl;
+		}
+		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
 		cout << " : " << (j_entry->getPid()) << endl;
-		this->j->removeJobById(last_job_id - 1);
-		kill(j_entry->getPid(), SIGCONT);
+		if(kill(j_entry->getPid(), SIGCONT) == 0){
+			s.setCurrentFgPid(j_entry->getPid());
+		} else {
+			perror("smash error: kill failed");
+			return;
+		}
 		int wstatus = 0;
-		pid_t result = waitpid(j_entry->getPid(), &wstatus, WCONTINUED); //TODO: parse if we got Ctrl + Z
+		s.setCurrentCommand(j_entry->getCmd());
+		pid_t result = waitpid(j_entry->getPid(), &wstatus, WUNTRACED); //TODO: parse if we got Ctrl + Z
 		if(result != j_entry->getPid()) {
 			perror("smash error: waitpid failed");
 		}
+		this->j->removeJobById(last_job_id);
 	}
 }
 
@@ -516,8 +556,7 @@ void BackgroundCommand::execute(){
 		cout << "smash error: bg: invalid arguments" <<endl;
 		return;
 	}
-	int jobId = atoi(this->command[1]);
-	if(this->numOfArgs == 2 && jobId <= 0){
+	if(this->numOfArgs == 2 && atoi(this->command[1]) <= 0){
 		cout << "smash error: bg: invalid arguments" <<endl;
 		return;
 	}
@@ -531,9 +570,13 @@ void BackgroundCommand::execute(){
 		pid_t pid = j_entry->getPid();
 		j_entry->printArgs((j_entry->getJob()), j_entry->getNumOfArgs());
 		cout << " : " << pid << endl;
-		j_entry->setIsStopped(false);
-		kill(pid, SIGCONT);
+		if(kill(pid, SIGCONT) == -1){
+			perror("smash error: kill failed");
+		} else {
+			j_entry->setIsStopped(false);
+		}
 	} else {
+		int jobId = atoi(this->command[1]);
 		JobsList::JobEntry* j_entry = this->j->getJobById(jobId);
 		if(nullptr == j_entry){
 			cout << "smash error: bg: job-id " << jobId << " does not exist" << endl;
@@ -546,8 +589,11 @@ void BackgroundCommand::execute(){
 		pid_t pid = j_entry->getPid();
 		j_entry->printArgs((j_entry->getJob()), j_entry->getNumOfArgs());
 		cout << " : " << pid << endl;
-		j_entry->setIsStopped(false);
-		kill(pid, SIGCONT);
+		if(kill(pid, SIGCONT) == -1){
+			perror("smash error: kill failed");
+		} else {
+			j_entry->setIsStopped(false);
+		}
 	}
 }
 
@@ -605,42 +651,62 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	int n = _parseCommandLine(cmd_line, temp);
 	if (strcmp(temp[0], "chprompt") == 0) {
 		destroyTemp(temp, n);
-		return new ChangePromptCommand(cmd_line);
+		ChangePromptCommand* c = new ChangePromptCommand(cmd_line);
+		this->setCurrentCommand(c);
+		return c;
 	}
 	if (strcmp(temp[0], "showpid") == 0) {
 		destroyTemp(temp, n);
-		return new ShowPidCommand(cmd_line);
+		ShowPidCommand* c = new ShowPidCommand(cmd_line);
+		this->setCurrentCommand(c);
+		return c;
 	}
 	if (strcmp(temp[0], "pwd") == 0) {
 		destroyTemp(temp, n);
-		return new GetCurrDirCommand(cmd_line);
+		GetCurrDirCommand* c = new GetCurrDirCommand(cmd_line);
+		this->setCurrentCommand(c);
+		return c;
 	}
 	if(strcmp(temp[0], "cd") == 0){
 		destroyTemp(temp, n);
-		return new ChangeDirCommand(cmd_line, &(this->plastPwd));
+		ChangeDirCommand* c = new ChangeDirCommand(cmd_line, &(this->plastPwd));
+		this->setCurrentCommand(c);
+		return c;
 	}
 	SmallShell& smash = SmallShell::getInstance();
 	if(strcmp(temp[0], "jobs") == 0){
 		destroyTemp(temp, n);
-		return new JobsCommand(cmd_line, smash.getJobs());
+		JobsCommand* c = new JobsCommand(cmd_line, smash.getJobs());
+		this->setCurrentCommand(c);
+		return c;
 	}
 	if(strcmp(temp[0], "kill") == 0){
 		destroyTemp(temp, n);
-		return new KillCommand(cmd_line, smash.getJobs());
+		KillCommand* c = new KillCommand(cmd_line, smash.getJobs());
+		this->setCurrentCommand(c);
+		return c;
 	}
 	if(strcmp(temp[0], "fg") == 0){
 		destroyTemp(temp, n);
-		return new ForegroundCommand(cmd_line, smash.getJobs());
+		ForegroundCommand* c = new ForegroundCommand(cmd_line, smash.getJobs());
+		this->setCurrentCommand(c);
+		return c;
 	}
 	if(strcmp(temp[0], "bg") == 0){
 		destroyTemp(temp, n);
-		return new BackgroundCommand(cmd_line, smash.getJobs());
+		BackgroundCommand *c = new BackgroundCommand(cmd_line, smash.getJobs());
+		this->setCurrentCommand(c);
+		return c;
 	}
 	if(strcmp(temp[0], "quit") == 0){
 		destroyTemp(temp, n);
-		return new QuitCommand(cmd_line, smash.getJobs());
+		QuitCommand *c = new QuitCommand(cmd_line, smash.getJobs());
+		this->setCurrentCommand(c);
+		return c;
 	}
-	return new ExternalCommand(cmd_line);
+	ExternalCommand *c = new ExternalCommand(cmd_line);
+	this->setCurrentCommand(c);
+	return c;
 	//return nullptr;
 }
 
@@ -676,5 +742,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
 	   return;
    }
    cmd->execute();
+   //delete cmd;
 	// Please note that you must fork smash process for some commands (e.g., external commands....)
 }

@@ -1,6 +1,8 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
 
+#include <unistd.h>
+#include <sys/wait.h>
 #include <iostream>
 #include <vector>
 #include <cstdlib>
@@ -108,14 +110,16 @@ class JobsList {
  //JobEntry
  //----------- 
   class JobEntry {
+	  Command* cmd=nullptr;
 	  char* job[COMMAND_MAX_ARGS];
 	  pid_t pid;
 	  bool isStopped;
 	  time_t time;
 	  int numOfArgs;
 	 public:
-	  JobEntry(char** j, pid_t p, bool iS, time_t t, int n): pid(p), 
+	  JobEntry(Command* c,char** j, pid_t p, bool iS, time_t t, int n): pid(p), 
 	  isStopped(iS), time(t), numOfArgs(n) {
+		  cmd=c;
 		  for (int i = 0; i < n; i++) {
 			this->job[i] = (char*)(malloc (strlen(j[i]) + 1));
 			memcpy(this->job[i], j[i], strlen(j[i]) + 1);
@@ -123,7 +127,7 @@ class JobsList {
 	  }
 	  
 	  ~JobEntry(){
-		  for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
+		  for (int i = 0; i < numOfArgs; i++) {
 			  free(this->job[i]);
 		  }
 	  }
@@ -134,6 +138,15 @@ class JobsList {
 		  }
 	  }
 	  
+	  void printArgsWithoutFirstSpace(char* a[COMMAND_MAX_ARGS], int n){
+		  cout << string(a[0]);
+		  for (int i = 1; i < n; i++) {
+			  cout << " " << string(a[i]);
+		  }
+	  }
+	  Command* getCmd(){
+		  return this->cmd;
+	  }
 	  char** getJob(){
 		  return this->job;
 	  }
@@ -170,7 +183,7 @@ class JobsList {
  public:
   JobsList();
   ~JobsList();
-  void addJob(Command* cmd,pid_t pid, bool isStopped = false); //done
+  void addJob(Command* cmd, pid_t pid, bool isStopped = false); //done
   void printJobsList(); //done
   void killAllJobs(); //done
   void removeFinishedJobs();
@@ -243,6 +256,9 @@ class ChangePromptCommand : public BuiltInCommand {
 class SmallShell {
  private:
   // TODO: Add your data members
+  Command* current_command = nullptr;
+  const pid_t smash_pid = getpid();
+  pid_t current_fg_pid;
   JobsList* jobs;
   char prompt[80] = "smash";
   char *plastPwd = nullptr;
@@ -264,6 +280,21 @@ class SmallShell {
   char* getlastPwd();
   void setPlastPwd(char* pwd_new);
   JobsList* getJobs();
+  void setCurrentFgPid(pid_t p){
+	  this->current_fg_pid = p;
+  }
+  const pid_t getSmashPid() {
+	  return this->smash_pid;
+  }
+  pid_t getCurrentFgPid(){
+	  return this->current_fg_pid;
+  }
+  void setCurrentCommand(Command* c){
+	  this->current_command = c;
+  }
+  Command* getCurrentCommand(){
+	  return this->current_command;
+  }
   // TODO: add extra methods as needed
 };
 
