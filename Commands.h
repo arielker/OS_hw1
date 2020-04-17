@@ -1,6 +1,9 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <iostream>
@@ -55,6 +58,10 @@ class ExternalCommand : public Command {
 };
 
 class PipeCommand : public Command {
+	const char* out_to_in = "|";
+	const char* err_to_in = "|&";
+	pid_t pid;
+	int place_of_sign;
   // TODO: Add your data members
  public:
   PipeCommand(const char* cmd_line);
@@ -64,9 +71,24 @@ class PipeCommand : public Command {
 
 class RedirectionCommand : public Command {
  // TODO: Add your data members
+	const char* over = ">";
+	const char* append = ">>";
+	pid_t pid;
+	int place_of_sign;
+	char* create_cmd_command(){
+		string a = "";
+		for (int i = 0; i < place_of_sign; i++) {
+			a = a + " " + string(this->command[i]);
+		}
+		int n = a.length();
+		char* ret = (char*)(malloc (n + 1));
+		memset(ret, 0, n + 1);
+		strcpy(ret, a.c_str());
+		return ret;
+	}
  public:
   explicit RedirectionCommand(const char* cmd_line);
-  virtual ~RedirectionCommand() {}
+  virtual ~RedirectionCommand() = default;
   void execute() override;
   //void prepare() override;
   //void cleanup() override;
@@ -89,6 +111,7 @@ class GetCurrDirCommand : public BuiltInCommand {
 };
 
 class ShowPidCommand : public BuiltInCommand {
+	pid_t pid;
  public:
   ShowPidCommand(const char* cmd_line);
   virtual ~ShowPidCommand();

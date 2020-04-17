@@ -76,6 +76,10 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+ static int findRedirectionCommand(char** a, int n);
+ //static int findPipeCommand(char** a, int n);
+ static void destroyTemp (char** a, int n);
+
 //--------------------------------
 //Command
 //--------------------------------
@@ -175,6 +179,74 @@ void ExternalCommand::execute() {
 }
 
 //--------------------------------
+//Redirection Command
+//--------------------------------
+
+RedirectionCommand::RedirectionCommand(const char* cmd_line): 
+Command(cmd_line), pid(0){
+	this->is_background = _isBackgroundComamnd(cmd_line);
+	this->place_of_sign = findRedirectionCommand(this->command, this->numOfArgs);
+}
+
+void RedirectionCommand::execute(){
+	SmallShell& smash = SmallShell::getInstance();
+	if(this->is_background){
+		if(strcmp(this->command[place_of_sign], append) == 0) {
+			
+		} else { //override
+			
+		}
+	} else { // not in background
+		if(strcmp(this->command[place_of_sign], append) == 0) {
+			char* cmd_line_until_sign = this->create_cmd_command();
+			Command* cmd = smash.CreateCommand(cmd_line_until_sign);
+			pid_t pid = fork();
+			if(pid == 0){
+				close(1);
+				int open_res = open(this->command[place_of_sign + 1], O_WRONLY | O_APPEND | O_CREAT, 0666);
+				if (open_res == -1){
+					perror("smash error: open failed");
+				}
+				cmd->execute();
+				if(-1 == close(open_res)){
+					perror("smash error: open failed");
+				}
+				free(cmd_line_until_sign);
+				delete cmd;
+				kill(getpid(),SIGKILL);
+			} else if (pid > 0) {
+				wait(nullptr);
+			} else {
+				perror("smash error: fork failed");
+			}
+		} else { //override
+			char* cmd_line_until_sign = this->create_cmd_command();
+			Command* cmd = smash.CreateCommand(cmd_line_until_sign);
+			pid_t pid = fork();
+			if(pid == 0){
+				close(1);
+				int open_res = open(this->command[place_of_sign + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+				if (open_res == -1){
+					perror("smash error: open failed");
+				}
+				
+				cmd->execute();
+				if(-1 == close(open_res)){
+					perror("smash error: open failed");
+				}
+				free(cmd_line_until_sign);
+				delete cmd;
+				kill(getpid(),SIGKILL);
+			} else if (pid > 0) {
+				wait(nullptr);
+			} else {
+				perror("smash error: fork failed");
+			}
+		}
+	}
+}
+
+//--------------------------------
 // Change Prompt
 //--------------------------------
 
@@ -209,6 +281,7 @@ ChangePromptCommand::~ChangePromptCommand(){
 
 ShowPidCommand::ShowPidCommand(const char* cmd_line) :
 BuiltInCommand(cmd_line){
+	 pid =  getpid();
 	this->numOfArgs = 1;
 }
 
@@ -219,8 +292,7 @@ ShowPidCommand::~ShowPidCommand(){
 }
 
 void ShowPidCommand::execute(){
-	pid_t pid =  getpid();
-	std::cout << pid <<std::endl;
+	std::cout <<"smash pid is "<< pid <<std::endl;
 }
 
 //--------------------------------
@@ -448,7 +520,6 @@ void KillCommand::execute(){
 	}
 	int signum = (-1)*(atoi(command[1]));
 	int job_id = atoi(command[2]);
-	//if(!isCharNegativeNumber(command[1]) || !isCharPositiveNumber(command[2])){
 	if(signum <= 0 || job_id <= 0){
 		cout << "smash error: kill: invalid arguments" << endl;
 		return;
@@ -489,7 +560,6 @@ void ForegroundCommand::execute(){
 	if(this->numOfArgs == 2 && atoi(this->command[1]) <= 0) {
 		cout<< "smash error: fg: invalid arguments" <<endl;
 		return;
-
 	}
 	int last_job_id = 0;
 	SmallShell& s = SmallShell::getInstance();
@@ -503,7 +573,6 @@ void ForegroundCommand::execute(){
 		pid_t pid = j_entry->getPid();
 		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
 		cout << " : " << pid << endl;
-		
 		if(kill(pid, SIGCONT) == 0){
 			s.setCurrentFgPid(pid);
 		} else {
@@ -518,7 +587,6 @@ void ForegroundCommand::execute(){
 			return;
 		}
 		this->j->removeJobById(job_id);
-		
 	} else if (this->numOfArgs == 1) {
 		JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
 		if(nullptr == j_entry){
@@ -643,12 +711,50 @@ static void destroyTemp (char** a, int n){
 }
 
 /**
+ * find Pipe sign
+ *
+ static int findPipeCommand(char** a, int n) {
+	 for (int i = 1; i < n; i++) {
+		 if (strcmp(a[i], "|") == 0 || strcmp(a[i], "|&") == 0){
+			 return i;
+		 }
+	 }
+	 return -1;
+ }*/
+
+/**
+ * find Redirection sign
+ **/
+ static int findRedirectionCommand(char** a, int n){
+	 for (int i = 1; i < n; i++) {
+		 if (strcmp(a[i], ">") == 0 || strcmp(a[i], ">>") == 0){
+			 return i;
+		 }
+	 }
+	 return -1;
+ }
+
+/**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
 	char* temp[COMMAND_MAX_ARGS] = {0};
 	int n = _parseCommandLine(cmd_line, temp);
+	
+	if(n >= 3 && findRedirectionCommand(temp, n) > 0){
+		destroyTemp(temp, n);
+		RedirectionCommand *c = new RedirectionCommand(cmd_line);
+		this->setCurrentCommand(c);
+		return c;
+	}
+	/*if(n >= 3 && findPipeCommand(temp, n) > 0){
+		destroyTemp(temp, n);
+		PipeCommand *c = new PipeCommand(cmd_line);
+		this->setCurrentCommand(c);
+		return c;
+	}*/
+	
 	if (strcmp(temp[0], "chprompt") == 0) {
 		destroyTemp(temp, n);
 		ChangePromptCommand* c = new ChangePromptCommand(cmd_line);
@@ -704,6 +810,8 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 		this->setCurrentCommand(c);
 		return c;
 	}
+	
+	
 	ExternalCommand *c = new ExternalCommand(cmd_line);
 	this->setCurrentCommand(c);
 	return c;
