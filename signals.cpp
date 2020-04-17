@@ -20,6 +20,7 @@ void ctrlCHandler(int sig_num) {
 			smash.setCurrentFgPid(smash.getSmashPid());
 		}
 	}
+	
 }
 
 void ctrlZHandler(int sig_num) {

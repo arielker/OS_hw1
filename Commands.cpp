@@ -77,7 +77,7 @@ void _removeBackgroundSign(char* cmd_line) {
 }
 
  static int findRedirectionCommand(char** a, int n);
- //static int findPipeCommand(char** a, int n);
+ static int findPipeCommand(char** a, int n);
  static void destroyTemp (char** a, int n);
 
 //--------------------------------
@@ -149,6 +149,7 @@ void ExternalCommand::execute() {
 	if(!(this->is_background)) {
 		pid_t pid = fork();
 		if (pid == 0) {
+			smash.setCurrentFgPid(getpid());
 			setpgrp();
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1) {
@@ -156,7 +157,7 @@ void ExternalCommand::execute() {
 				smash.setCurrentFgPid(smash.getSmashPid());
 			}
 		} else if (pid > 0) {
-			smash.setCurrentFgPid(pid);
+			smash.setCurrentFgPid(getpid());
 			waitpid(pid, nullptr, WUNTRACED);
 			smash.setCurrentFgPid(smash.getSmashPid());
 		} else{
@@ -167,12 +168,15 @@ void ExternalCommand::execute() {
 		pid_t pid = fork();
 		smash.getJobs()->addJob(this,pid);
 		if (pid == 0) {
+			smash.setCurrentFgPid(getpid());
 			setpgrp();
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1){
+				smash.setCurrentFgPid(getpid());
 				perror("smash error: execv failed");
 			}
 		} else if (pid < 0){
+			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
 		}
 	}
@@ -183,7 +187,7 @@ void ExternalCommand::execute() {
 //--------------------------------
 
 RedirectionCommand::RedirectionCommand(const char* cmd_line): 
-Command(cmd_line), pid(0){
+Command(cmd_line){
 	this->is_background = _isBackgroundComamnd(cmd_line);
 	if(this->is_background){
 		char* temp = const_cast<char*>(cmd_line);
@@ -200,10 +204,12 @@ void RedirectionCommand::execute(){
 		Command* cmd = smash.CreateCommand(cmd_line_until_sign);
 		pid_t pid = fork();
 		if(pid == 0){
+			smash.setCurrentFgPid(getpid());
 			setpgrp();
 			if(strcmp(this->command[place_of_sign], append) == 0) { //append
 				pid_t pid1 = fork();
 				if(pid1 == 0){
+					smash.setCurrentFgPid(getpid());
 					setpgrp();
 					close(1);
 					int open_res = open(cmd_without_bg_sign[place_of_sign + 1], O_WRONLY | O_APPEND | O_CREAT, 0666);
@@ -218,14 +224,17 @@ void RedirectionCommand::execute(){
 					delete cmd;
 					kill(getpid(),SIGKILL);
 				} else if (pid1 > 0) {
+					smash.setCurrentFgPid(getpid());
 					wait(nullptr);
 				} else {
+					smash.setCurrentFgPid(getpid());
 					perror("smash error: fork failed");
 				}
 				kill(getpid(),SIGKILL);
 			} else { //override
 				pid_t pid1 = fork();
 				if(pid1 == 0){
+					smash.setCurrentFgPid(getpid());
 					setpgrp();
 					close(1);
 					int open_res = open(cmd_without_bg_sign[place_of_sign + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -240,15 +249,19 @@ void RedirectionCommand::execute(){
 					delete cmd;
 					kill(getpid(),SIGKILL);
 				} else if (pid1 > 0) {
+					smash.setCurrentFgPid(getpid());
 					wait(nullptr);
 				} else {
+					smash.setCurrentFgPid(getpid());
 					perror("smash error: fork failed");
 				}
 				kill(getpid(),SIGKILL);
 			}
 		} else if (pid == -1){
+			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
 		} else {
+			smash.setCurrentFgPid(getpid());
 			smash.getJobs()->addJob(this, pid);
 		}
 	} else { // not in background
@@ -257,6 +270,7 @@ void RedirectionCommand::execute(){
 			Command* cmd = smash.CreateCommand(cmd_line_until_sign);
 			pid_t pid = fork();
 			if(pid == 0){
+				smash.setCurrentFgPid(getpid());
 				setpgrp();
 				close(1);
 				int open_res = open(this->command[place_of_sign + 1], O_WRONLY | O_APPEND | O_CREAT, 0666);
@@ -271,8 +285,10 @@ void RedirectionCommand::execute(){
 				delete cmd;
 				kill(getpid(),SIGKILL);
 			} else if (pid > 0) {
+				smash.setCurrentFgPid(getpid());
 				wait(nullptr);
 			} else {
+				smash.setCurrentFgPid(getpid());
 				perror("smash error: fork failed");
 			}
 		} else { //override
@@ -280,6 +296,7 @@ void RedirectionCommand::execute(){
 			Command* cmd = smash.CreateCommand(cmd_line_until_sign);
 			pid_t pid = fork();
 			if(pid == 0){
+				smash.setCurrentFgPid(getpid());
 				close(1);
 				int open_res = open(this->command[place_of_sign + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
 				if (open_res == -1){
@@ -294,8 +311,10 @@ void RedirectionCommand::execute(){
 				delete cmd;
 				kill(getpid(),SIGKILL);
 			} else if (pid > 0) {
+				smash.setCurrentFgPid(getpid());
 				wait(nullptr);
 			} else {
+				smash.setCurrentFgPid(getpid());
 				perror("smash error: fork failed");
 			}
 		}
@@ -303,7 +322,122 @@ void RedirectionCommand::execute(){
 }
 
 //--------------------------------
-// Change Prompt
+//Pipe Command
+//--------------------------------
+
+PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line){
+	this->is_background = _isBackgroundComamnd(cmd_line);
+	if(this->is_background){
+		char* temp = const_cast<char*>(cmd_line);
+		_removeBackgroundSign(temp);
+		_parseCommandLine(temp, this->cmd_without_bg_sign);
+	}
+	this->place_of_sign = findPipeCommand(this->command, this->numOfArgs);
+}
+
+//son always writes
+//father always recieves
+//0 for read, 1 for write
+void PipeCommand::execute(){
+	SmallShell& smash = SmallShell::getInstance();
+	char* cmd_line_until_sign = this->create_cmd_command(true);
+	char* cmd_line_after_sign = this->create_cmd_command(false);
+	Command* cmd_writes = smash.CreateCommand(cmd_line_until_sign);
+	Command* cmd_reads = smash.CreateCommand(cmd_line_after_sign);
+	if(this->is_background){
+		//in background
+		pid_t pid = fork();
+		if(pid == 0){
+			smash.setCurrentFgPid(getpid());
+			if(strcmp(this->command[place_of_sign], err_to_in) == 0){ 
+			//error to in
+				//TODO
+			} else { //out to in
+				//TODO
+			}
+		} else if (pid == -1){
+			smash.setCurrentFgPid(getpid());
+			perror("smash error: fork failed");
+		} else {
+			smash.setCurrentFgPid(getpid());
+			smash.getJobs()->addJob(this, pid);
+		}
+	} else { //not in background
+		pid_t pid = fork();
+		if(pid == 0){
+			smash.setCurrentFgPid(getpid());
+			int my_pipe[2];
+			if(strcmp(this->command[place_of_sign], err_to_in) == 0){ //error to in
+				if(pipe(my_pipe) == -1){
+					perror("smash error: pipe failed");
+					kill(getpid(), SIGKILL);
+				}
+				smash.setCurrentFgPid(getpid());
+				pid_t pid1 = fork();
+				
+				if(pid1 == 0){
+					smash.setCurrentFgPid(getpid());
+					close(2);
+					close(my_pipe[0]);
+					dup2(my_pipe[1],2);
+					cmd_writes->execute();
+					close(my_pipe[1]);
+				} else if(pid1 > 0){
+					close(0);
+					close(my_pipe[1]);
+					wait(nullptr);
+					smash.setCurrentFgPid(getpid());
+					dup2(my_pipe[0],0);
+					cmd_reads->execute(); 
+					close(my_pipe[0]);
+					
+				} else {
+					smash.setCurrentFgPid(getpid());
+					perror("smash error: fork failed");
+				}
+			} else { //out to in
+				if(pipe(my_pipe) == -1){
+					perror("smash error: pipe failed");
+					kill(getpid(), SIGKILL);
+				}
+				smash.setCurrentFgPid(getpid());
+				pid_t pid1 = fork();
+				
+				if(pid1 == 0){
+					smash.setCurrentFgPid(getpid());
+					close(1);
+					close(my_pipe[0]);
+					dup2(my_pipe[1],1);
+					cmd_writes->execute();
+					close(my_pipe[1]);
+				} else if(pid1 > 0){
+					close(0);
+					close(my_pipe[1]);
+					wait(nullptr);
+					smash.setCurrentFgPid(getpid());
+					dup2(my_pipe[0],0);
+					cmd_reads->execute(); 
+					close(my_pipe[0]);
+					
+				} else {
+					smash.setCurrentFgPid(getpid());
+					perror("smash error: fork failed");
+				}
+			}
+			kill(getpid(), SIGKILL);
+		} else if (pid > 0){
+			smash.setCurrentFgPid(getpid());
+			wait(nullptr);
+		} else {
+			smash.setCurrentFgPid(getpid());
+			perror("smash error: fork failed");
+		}
+	}
+	smash.setCurrentFgPid(getpid());
+}
+
+//--------------------------------
+// Change Prompt Command
 //--------------------------------
 
 ChangePromptCommand::ChangePromptCommand(const char* cmd_line) :
@@ -768,7 +902,7 @@ static void destroyTemp (char** a, int n){
 
 /**
  * find Pipe sign
- *
+ **/
  static int findPipeCommand(char** a, int n) {
 	 for (int i = 1; i < n; i++) {
 		 if (strcmp(a[i], "|") == 0 || strcmp(a[i], "|&") == 0){
@@ -776,7 +910,7 @@ static void destroyTemp (char** a, int n){
 		 }
 	 }
 	 return -1;
- }*/
+ }
 
 /**
  * find Redirection sign
@@ -804,13 +938,12 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 		this->setCurrentCommand(c);
 		return c;
 	}
-	/*if(n >= 3 && findPipeCommand(temp, n) > 0){
+	if(n >= 3 && findPipeCommand(temp, n) > 0){
 		destroyTemp(temp, n);
 		PipeCommand *c = new PipeCommand(cmd_line);
 		this->setCurrentCommand(c);
 		return c;
-	}*/
-	
+	}
 	if (strcmp(temp[0], "chprompt") == 0) {
 		destroyTemp(temp, n);
 		ChangePromptCommand* c = new ChangePromptCommand(cmd_line);

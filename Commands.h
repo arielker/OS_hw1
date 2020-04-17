@@ -60,8 +60,28 @@ class ExternalCommand : public Command {
 class PipeCommand : public Command {
 	const char* out_to_in = "|";
 	const char* err_to_in = "|&";
-	pid_t pid;
+	//pid_t pid;
 	int place_of_sign;
+	char* cmd_without_bg_sign[COMMAND_MAX_ARGS];
+	char* create_cmd_command(bool is_writes){
+		string a = "";
+		if(is_writes){
+			a = string(this->command[0]);
+			for (int i = 1; i < place_of_sign; i++) {
+				a = a + " " + string(this->command[i]);
+			}
+		} else {
+			a = string(this->command[place_of_sign + 1]);
+			for (int i = place_of_sign + 2; i < numOfArgs; i++) {
+				a = a + " " + string(this->command[i]);
+			}
+		}
+		int n = a.length();
+		char* ret = (char*)(malloc (n + 1));
+		memset(ret, 0, n + 1);
+		strcpy(ret, a.c_str());
+		return ret;
+	}
   // TODO: Add your data members
  public:
   PipeCommand(const char* cmd_line);
@@ -73,7 +93,7 @@ class RedirectionCommand : public Command {
  // TODO: Add your data members
 	const char* over = ">";
 	const char* append = ">>";
-	pid_t pid;
+	//pid_t pid;
 	int place_of_sign;
 	char* cmd_without_bg_sign[COMMAND_MAX_ARGS];
 	char* create_cmd_command(){
@@ -90,9 +110,15 @@ class RedirectionCommand : public Command {
  public:
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand(){
-	  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
-		  free(this->cmd_without_bg_sign[i]);
-		  free(this->command[i]);
+	  if(is_background){
+		  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
+			  free(this->cmd_without_bg_sign[i]);
+			  free(this->command[i]);
+		  }
+	  } else {
+		  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
+			  free(this->command[i]);
+		  }
 	  }
   }
   void execute() override;
