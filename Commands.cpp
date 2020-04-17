@@ -185,23 +185,79 @@ void ExternalCommand::execute() {
 RedirectionCommand::RedirectionCommand(const char* cmd_line): 
 Command(cmd_line), pid(0){
 	this->is_background = _isBackgroundComamnd(cmd_line);
+	if(this->is_background){
+		char* temp = const_cast<char*>(cmd_line);
+		_removeBackgroundSign(temp);
+		_parseCommandLine(temp, this->cmd_without_bg_sign);
+	}
 	this->place_of_sign = findRedirectionCommand(this->command, this->numOfArgs);
 }
 
 void RedirectionCommand::execute(){
 	SmallShell& smash = SmallShell::getInstance();
 	if(this->is_background){
-		if(strcmp(this->command[place_of_sign], append) == 0) {
-			
-		} else { //override
-			
+		char* cmd_line_until_sign = this->create_cmd_command();
+		Command* cmd = smash.CreateCommand(cmd_line_until_sign);
+		pid_t pid = fork();
+		if(pid == 0){
+			setpgrp();
+			if(strcmp(this->command[place_of_sign], append) == 0) { //append
+				pid_t pid1 = fork();
+				if(pid1 == 0){
+					setpgrp();
+					close(1);
+					int open_res = open(cmd_without_bg_sign[place_of_sign + 1], O_WRONLY | O_APPEND | O_CREAT, 0666);
+					if (open_res == -1) {
+						perror("smash error: open failed");
+					}
+					cmd->execute();
+					if(-1 == close(open_res)){
+						perror("smash error: open failed");
+					}
+					free(cmd_line_until_sign);
+					delete cmd;
+					kill(getpid(),SIGKILL);
+				} else if (pid1 > 0) {
+					wait(nullptr);
+				} else {
+					perror("smash error: fork failed");
+				}
+				kill(getpid(),SIGKILL);
+			} else { //override
+				pid_t pid1 = fork();
+				if(pid1 == 0){
+					setpgrp();
+					close(1);
+					int open_res = open(cmd_without_bg_sign[place_of_sign + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+					if (open_res == -1){
+						perror("smash error: open failed");
+					}
+					cmd->execute();
+					if(-1 == close(open_res)){
+						perror("smash error: open failed");
+					}
+					free(cmd_line_until_sign);
+					delete cmd;
+					kill(getpid(),SIGKILL);
+				} else if (pid1 > 0) {
+					wait(nullptr);
+				} else {
+					perror("smash error: fork failed");
+				}
+				kill(getpid(),SIGKILL);
+			}
+		} else if (pid == -1){
+			perror("smash error: fork failed");
+		} else {
+			smash.getJobs()->addJob(this, pid);
 		}
 	} else { // not in background
-		if(strcmp(this->command[place_of_sign], append) == 0) {
+		if(strcmp(this->command[place_of_sign], append) == 0) { //append
 			char* cmd_line_until_sign = this->create_cmd_command();
 			Command* cmd = smash.CreateCommand(cmd_line_until_sign);
 			pid_t pid = fork();
 			if(pid == 0){
+				setpgrp();
 				close(1);
 				int open_res = open(this->command[place_of_sign + 1], O_WRONLY | O_APPEND | O_CREAT, 0666);
 				if (open_res == -1){

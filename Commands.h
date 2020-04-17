@@ -75,6 +75,7 @@ class RedirectionCommand : public Command {
 	const char* append = ">>";
 	pid_t pid;
 	int place_of_sign;
+	char* cmd_without_bg_sign[COMMAND_MAX_ARGS];
 	char* create_cmd_command(){
 		string a = "";
 		for (int i = 0; i < place_of_sign; i++) {
@@ -88,7 +89,12 @@ class RedirectionCommand : public Command {
 	}
  public:
   explicit RedirectionCommand(const char* cmd_line);
-  virtual ~RedirectionCommand() = default;
+  virtual ~RedirectionCommand(){
+	  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
+		  free(this->cmd_without_bg_sign[i]);
+		  free(this->command[i]);
+	  }
+  }
   void execute() override;
   //void prepare() override;
   //void cleanup() override;
