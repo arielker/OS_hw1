@@ -346,8 +346,8 @@ void CopyCommand::execute() {
 		pid_t pid = fork();
 		smash.getJobs()->addJob(this,pid);
 		if(pid == 0){
-			char* sourceAddress=this->command[1];
-			char* destinationAddress=this->command[2];
+			char* sourceAddress=this->cmd_without_bg_sign[1];
+			char* destinationAddress=this->cmd_without_bg_sign[2];
 			char buff[1024];
 			ssize_t count;
 			int file[2];
