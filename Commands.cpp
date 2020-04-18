@@ -450,10 +450,10 @@ void PipeCommand::execute(){
 					cmd_writes->execute();
 					close(my_pipe[1]);
 				} else if(pid1 > 0){
+					
+					wait(nullptr);
 					close(0);
 					close(my_pipe[1]);
-					wait(nullptr);
-					
 					dup2(my_pipe[0], 0);
 					cmd_reads->execute(); 
 					close(my_pipe[0]);
@@ -476,10 +476,10 @@ void PipeCommand::execute(){
 					cmd_writes->execute();
 					close(my_pipe[1]);
 				} else if(pid1 > 0){
+					
+					wait(nullptr);
 					close(0);
 					close(my_pipe[1]);
-					wait(nullptr);
-					
 					dup2(my_pipe[0],0);
 					cmd_reads->execute(); 
 					close(my_pipe[0]);
@@ -517,9 +517,10 @@ void PipeCommand::execute(){
 					close(my_pipe[1]);
 				} else if(pid1 > 0){
 					smash.setCurrentFgPid(pid1);
+					
+					wait(nullptr);
 					close(0);
 					close(my_pipe[1]);
-					wait(nullptr);
 					smash.setCurrentFgPid(getpid());
 					dup2(my_pipe[0],0);
 					cmd_reads->execute(); 
@@ -544,9 +545,10 @@ void PipeCommand::execute(){
 					close(my_pipe[1]);
 				} else if(pid1 > 0){
 					smash.setCurrentFgPid(pid1);
+					
+					wait(nullptr);
 					close(0);
 					close(my_pipe[1]);
-					wait(nullptr);
 					smash.setCurrentFgPid(getpid());
 					dup2(my_pipe[0],0);
 					cmd_reads->execute(); 
