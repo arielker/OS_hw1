@@ -157,7 +157,6 @@ void ExternalCommand::execute() {
 				smash.setCurrentFgPid(smash.getSmashPid());
 			}
 		} else if (pid > 0) {
-			smash.setCurrentFgPid(getpid());
 			waitpid(pid, nullptr, WUNTRACED);
 			smash.setCurrentFgPid(smash.getSmashPid());
 		} else{
@@ -168,11 +167,9 @@ void ExternalCommand::execute() {
 		pid_t pid = fork();
 		smash.getJobs()->addJob(this,pid);
 		if (pid == 0) {
-			smash.setCurrentFgPid(getpid());
 			setpgrp();
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1){
-				smash.setCurrentFgPid(getpid());
 				perror("smash error: execv failed");
 			}
 		} else if (pid < 0){
@@ -329,6 +326,7 @@ void CopyCommand::execute() {
 	SmallShell& smash = SmallShell::getInstance();
 	if(this->is_background){//background
 		pid_t pid = fork();
+		smash.getJobs()->addJob(this,pid);
 		if(pid == 0){
 			char* sourceAddress=this->command[1];
 			char* destinationAddress=this->command[2];
@@ -351,8 +349,7 @@ void CopyCommand::execute() {
 			}
 			kill(getpid(),SIGKILL);
 		} else if (pid > 0){
-			wait(nullptr);
-			smash.setCurrentFgPid(getpid());
+			//add to jobs
 		} else {
 			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
@@ -424,7 +421,6 @@ void PipeCommand::execute(){
 		//in background
 		pid_t pid = fork();
 		if(pid == 0){
-			smash.setCurrentFgPid(getpid());
 			if(strcmp(this->command[place_of_sign], err_to_in) == 0){ 
 			//error to in
 				//TODO
@@ -432,10 +428,8 @@ void PipeCommand::execute(){
 				//TODO
 			}
 		} else if (pid == -1){
-			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
 		} else {
-			smash.setCurrentFgPid(getpid());
 			smash.getJobs()->addJob(this, pid);
 		}
 	} else { //not in background
