@@ -294,7 +294,7 @@ class CopyCommand : public Command {
 	int n;
  public:
   CopyCommand(const char* cmd_line);
-  virtual ~CopyCommand() {}
+  virtual ~CopyCommand();
   void execute() override;
 };
 
