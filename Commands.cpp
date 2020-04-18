@@ -349,7 +349,6 @@ void CopyCommand::execute() {
 			}
 			kill(getpid(),SIGKILL);
 		} else if (pid > 0){
-			//add to jobs
 		} else {
 			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
@@ -408,9 +407,6 @@ PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line){
 	this->place_of_sign = findPipeCommand(this->command, this->numOfArgs);
 }
 
-//son always writes
-//father always recieves
-//0 for read, 1 for write
 void PipeCommand::execute(){
 	SmallShell& smash = SmallShell::getInstance();
 	char* cmd_line_until_sign = this->create_cmd_command(true);
@@ -421,13 +417,64 @@ void PipeCommand::execute(){
 		//in background
 		pid_t pid = fork();
 		if(pid == 0){
+			int my_pipe[2];
 			if(strcmp(this->command[place_of_sign], err_to_in) == 0){ 
 			//error to in
-				//TODO
+				if(pipe(my_pipe) == -1){
+					perror("smash error: pipe failed");
+					kill(getpid(), SIGKILL);
+				}
+				pid_t pid1 = fork();
+				if(pid1 == 0){
+					smash.setCurrentFgPid(getpid());
+					close(2);
+					close(my_pipe[0]);
+					dup2(my_pipe[1], 2);
+					cmd_writes->execute();
+					close(my_pipe[1]);
+				} else if(pid1 > 0){
+					close(0);
+					close(my_pipe[1]);
+					wait(nullptr);
+					smash.setCurrentFgPid(getpid());
+					dup2(my_pipe[0], 0);
+					cmd_reads->execute(); 
+					close(my_pipe[0]);
+				} else {
+					smash.setCurrentFgPid(getpid());
+					perror("smash error: fork failed");
+				}
 			} else { //out to in
-				//TODO
+				if(pipe(my_pipe) == -1){
+					perror("smash error: pipe failed");
+					kill(getpid(), SIGKILL);
+				}
+				smash.setCurrentFgPid(getpid());
+				pid_t pid1 = fork();
+				if(pid1 == 0){
+					smash.setCurrentFgPid(getpid());
+					close(1);
+					close(my_pipe[0]);
+					dup2(my_pipe[1],1);
+					cmd_writes->execute();
+					close(my_pipe[1]);
+				} else if(pid1 > 0){
+					close(0);
+					close(my_pipe[1]);
+					wait(nullptr);
+					smash.setCurrentFgPid(getpid());
+					dup2(my_pipe[0],0);
+					cmd_reads->execute(); 
+					close(my_pipe[0]);
+					
+				} else {
+					smash.setCurrentFgPid(getpid());
+					perror("smash error: fork failed");
+				}
 			}
+			kill(getpid(), SIGKILL);
 		} else if (pid == -1){
+			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
 		} else {
 			smash.getJobs()->addJob(this, pid);
@@ -444,7 +491,6 @@ void PipeCommand::execute(){
 				}
 				smash.setCurrentFgPid(getpid());
 				pid_t pid1 = fork();
-				
 				if(pid1 == 0){
 					smash.setCurrentFgPid(getpid());
 					close(2);
@@ -460,7 +506,6 @@ void PipeCommand::execute(){
 					dup2(my_pipe[0],0);
 					cmd_reads->execute(); 
 					close(my_pipe[0]);
-					
 				} else {
 					smash.setCurrentFgPid(getpid());
 					perror("smash error: fork failed");
@@ -472,7 +517,6 @@ void PipeCommand::execute(){
 				}
 				smash.setCurrentFgPid(getpid());
 				pid_t pid1 = fork();
-				
 				if(pid1 == 0){
 					smash.setCurrentFgPid(getpid());
 					close(1);
@@ -503,6 +547,10 @@ void PipeCommand::execute(){
 			perror("smash error: fork failed");
 		}
 	}
+	//delete cmd_writes;
+	//delete cmd_reads;
+	//free(cmd_line_after_sign);
+	//free(cmd_line_until_sign);
 	smash.setCurrentFgPid(getpid());
 }
 
