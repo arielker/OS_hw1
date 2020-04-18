@@ -320,6 +320,53 @@ void RedirectionCommand::execute(){
 		}
 	}
 }
+//--------------------------------
+//Copy Command (cp)
+//--------------------------------
+
+CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line){}
+void CopyCommand::execute() {
+	SmallShell& smash = SmallShell::getInstance();
+	if(this->is_background){//background
+		//TODO
+	}
+	else{
+		pid_t pid = fork();
+		if(pid == 0){
+			smash.setCurrentFgPid(getpid());
+			char* sourceAddress=this->command[1];
+			char* destinationAddress=this->command[2];
+			char buff[1024];
+			ssize_t count;
+			int file[2];
+			
+			file[0]= open(sourceAddress,O_RDONLY);
+			if(file[0]==-1) perror("smash error: open failed");
+			file[1] = open(destinationAddress, O_WRONLY | O_CREAT | O_TRUNC,0666);
+			if(file[1] == -1){
+				close(file[0]);
+				perror("smash error: open failed");
+			}
+			count = read(file[0], buff, sizeof(buff));
+			while (count != 0){
+				write(file[1], buff, count);
+				count = read(file[0], buff, sizeof(buff));
+			}
+			kill(getpid(),SIGKILL);
+		} else if (pid > 0){
+			smash.setCurrentFgPid(getpid());
+			wait(nullptr);
+		} else {
+			smash.setCurrentFgPid(getpid());
+			perror("smash error: fork failed");
+		}
+	}
+	smash.setCurrentFgPid(getpid());
+}	
+
+
+
+
 
 //--------------------------------
 //Pipe Command
@@ -996,6 +1043,12 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	if(strcmp(temp[0], "quit") == 0){
 		destroyTemp(temp, n);
 		QuitCommand *c = new QuitCommand(cmd_line, smash.getJobs());
+		this->setCurrentCommand(c);
+		return c;
+	}
+	if (strcmp(temp[0], "cp") == 0) {
+		destroyTemp(temp, n);
+		CopyCommand* c = new CopyCommand(cmd_line);
 		this->setCurrentCommand(c);
 		return c;
 	}

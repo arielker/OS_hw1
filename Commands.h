@@ -289,7 +289,7 @@ class BackgroundCommand : public BuiltInCommand {
 
 
 // TODO: should it really inhirit from BuiltInCommand ?
-class CopyCommand : public BuiltInCommand {
+class CopyCommand : public Command {
  public:
   CopyCommand(const char* cmd_line);
   virtual ~CopyCommand() {}
