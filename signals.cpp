@@ -27,6 +27,7 @@ void ctrlZHandler(int sig_num) {
 	SmallShell& smash = SmallShell::getInstance();
 	std::cout<<"smash: got ctrl-Z"<<std::endl;
 	pid_t p = smash.getCurrentFgPid();
+	//cout<<"CURRENT:"<<p<<" ACTUAL SMASH:"<<smash.getSmashPid()<<endl;
 	if(p != smash.getSmashPid()){
 		if(kill(p, SIGSTOP) == -1){
 			perror("smash error: kill failed");

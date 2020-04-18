@@ -336,6 +336,7 @@ class SmallShell {
   void setPlastPwd(char* pwd_new);
   JobsList* getJobs();
   void setCurrentFgPid(pid_t p){
+	  //cout<<"CURRENT FG PID:"<< p<<endl;
 	  this->current_fg_pid = p;
   }
   const pid_t getSmashPid() {
