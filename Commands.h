@@ -290,6 +290,8 @@ class BackgroundCommand : public BuiltInCommand {
 
 // TODO: should it really inhirit from BuiltInCommand ?
 class CopyCommand : public Command {
+	char* cmd_without_bg_sign[COMMAND_MAX_ARGS];
+	int n;
  public:
   CopyCommand(const char* cmd_line);
   virtual ~CopyCommand() {}

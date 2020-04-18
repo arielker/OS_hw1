@@ -320,7 +320,26 @@ void RedirectionCommand::execute(){
 //Copy Command (cp)
 //--------------------------------
 
-CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line){}
+CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line), n(0){
+	this->is_background=_isBackgroundComamnd(cmd_line);
+	if(this->is_background){
+		char* temp = const_cast<char*>(cmd_line);
+		_removeBackgroundSign(temp);
+		this->n= _parseCommandLine(temp,this->cmd_without_bg_sign);
+	}
+}
+CopyCommand::~CopyCommand(){
+	if(this->is_background){
+		for (int i = 0; i <this->n; i++)
+		{
+			free(cmd_without_bg_sign[i]);
+		}
+	}
+	for (int i = 0; i <this->numOfArgs; i++)
+		{
+			free(command[i]);
+		}
+}
 void CopyCommand::execute() {
 	SmallShell& smash = SmallShell::getInstance();
 	if(this->is_background){//background
