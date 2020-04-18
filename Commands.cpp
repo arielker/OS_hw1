@@ -328,7 +328,35 @@ CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line){}
 void CopyCommand::execute() {
 	SmallShell& smash = SmallShell::getInstance();
 	if(this->is_background){//background
-		//TODO
+		pid_t pid = fork();
+		if(pid == 0){
+			char* sourceAddress=this->command[1];
+			char* destinationAddress=this->command[2];
+			char buff[1024];
+			ssize_t count;
+			int file[2];
+			
+			file[0]= open(sourceAddress,O_RDONLY);
+			if(file[0]==-1) perror("smash error: open failed");
+			file[1] = open(destinationAddress, O_WRONLY | O_CREAT | O_TRUNC,0666);
+			if(file[1] == -1){
+				close(file[0]);
+				perror("smash error: open failed");
+			}
+			count = read(file[0], buff, sizeof(buff));
+			while (count != 0){
+				if(count == -1) perror("smash error: read failed");
+				if(write(file[1], buff, count) == -1) perror("smash error: write failed");
+				count = read(file[0], buff, sizeof(buff));
+			}
+			kill(getpid(),SIGKILL);
+		} else if (pid > 0){
+			wait(nullptr);
+			smash.setCurrentFgPid(getpid());
+		} else {
+			smash.setCurrentFgPid(getpid());
+			perror("smash error: fork failed");
+		}
 	}
 	else{
 		pid_t pid = fork();
@@ -349,13 +377,14 @@ void CopyCommand::execute() {
 			}
 			count = read(file[0], buff, sizeof(buff));
 			while (count != 0){
-				write(file[1], buff, count);
+				if(count == -1) perror("smash error: read failed");
+				if(write(file[1], buff, count) == -1) perror("smash error: write failed");
 				count = read(file[0], buff, sizeof(buff));
 			}
 			kill(getpid(),SIGKILL);
 		} else if (pid > 0){
-			smash.setCurrentFgPid(getpid());
 			wait(nullptr);
+			smash.setCurrentFgPid(getpid());
 		} else {
 			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
@@ -473,8 +502,8 @@ void PipeCommand::execute(){
 			}
 			kill(getpid(), SIGKILL);
 		} else if (pid > 0){
-			smash.setCurrentFgPid(getpid());
 			wait(nullptr);
+			smash.setCurrentFgPid(getpid());
 		} else {
 			smash.setCurrentFgPid(getpid());
 			perror("smash error: fork failed");
