@@ -1050,7 +1050,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	// For example:
 	char* temp[COMMAND_MAX_ARGS] = {0};
 	int n = _parseCommandLine(cmd_line, temp);
-	if(n==0)return;
+	if(n==0) return nullptr;
 	if(n >= 3 && findRedirectionCommand(temp, n) > 0){
 		destroyTemp(temp, n);
 		RedirectionCommand *c = new RedirectionCommand(cmd_line);
