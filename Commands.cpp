@@ -89,7 +89,7 @@ Command::Command(const char* cmd_line) : is_background(false) {
 }
 
 Command::~Command(){
-	for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
+	for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
 	}
 }
@@ -326,6 +326,17 @@ CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line), n(0){
 		char* temp = const_cast<char*>(cmd_line);
 		_removeBackgroundSign(temp);
 		this->n = _parseCommandLine(temp,this->cmd_without_bg_sign);
+	}
+}
+
+CopyCommand::~CopyCommand(){
+	if(this->is_background){
+		for (int i = 0; i <this->n; i++) {
+			free(cmd_without_bg_sign[i]);
+		}
+	}
+	for (int i = 0; i <this->numOfArgs; i++){
+			free(command[i]);
 	}
 }
 
@@ -601,10 +612,6 @@ void PipeCommand::execute(){
 			perror("smash error: fork failed");
 		}
 	}
-	//delete cmd_writes;
-	//delete cmd_reads;
-	//free(cmd_line_after_sign);
-	//free(cmd_line_until_sign);
 	smash.setCurrentFgPid(getpid());
 }
 
@@ -618,11 +625,11 @@ BuiltInCommand(cmd_line) {
 	if(numOfArgs > 1) {
 		new_size = strlen(this->command[1]);
 		memcpy(this->prompt, command[1], new_size);
-		this->numOfArgs = 2;
+		this->n = 2;
 	} else if (numOfArgs == 1) {
 		new_size = strlen("smash");
 		memcpy(this->prompt, this->smash, new_size);
-		this->numOfArgs = 1;
+		this->n = 1;
 	}
 }
 
@@ -632,9 +639,10 @@ void ChangePromptCommand::execute(){
 }
 
 ChangePromptCommand::~ChangePromptCommand(){
-	for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
+	for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
 	}
+	free(this->prompt);
 }
 
 //--------------------------------
@@ -642,19 +650,18 @@ ChangePromptCommand::~ChangePromptCommand(){
 //--------------------------------
 
 ShowPidCommand::ShowPidCommand(const char* cmd_line) :
-BuiltInCommand(cmd_line){
-	 pid =  getpid();
-	this->numOfArgs = 1;
+BuiltInCommand(cmd_line), n(1){
+	pid =  getpid();
 }
 
 ShowPidCommand::~ShowPidCommand(){
-	for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
+	for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
 	}
 }
 
 void ShowPidCommand::execute(){
-	std::cout <<"smash pid is "<< pid <<std::endl;
+	cout << "smash pid is "<< pid << endl;
 }
 
 //--------------------------------
@@ -662,7 +669,13 @@ void ShowPidCommand::execute(){
 //--------------------------------
 GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) :
 BuiltInCommand(cmd_line) {
-	this->numOfArgs = 1;
+	this->n = 1;
+}
+
+GetCurrDirCommand::~GetCurrDirCommand(){
+	for (int i = 0; i < numOfArgs; i++) {
+		free(command[i]);
+	}
 }
 
 void GetCurrDirCommand::execute(){
@@ -671,7 +684,7 @@ void GetCurrDirCommand::execute(){
 		perror("smash error: getcwd failed");
 		return;
 	}
-	std::cout << dirpath<<std::endl;
+	cout << dirpath <<endl;
 }
 
 //--------------------------------
@@ -716,7 +729,7 @@ void ChangeDirCommand::execute(){
 
 ChangeDirCommand::~ChangeDirCommand(){
 	free(this->lastPwd);
-	for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
+	for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
 	}
 }
@@ -819,8 +832,7 @@ void JobsList::killAllJobs(){
 	this->removeFinishedJobs();
 	int numOfJobs=this->getJobs().size();
 	cout<<"smash: sending SIGKILL signal to "<<numOfJobs<<" jobs:"<<endl;
-	for (vector<JobEntry*>::iterator it = jobs.begin() ; it != jobs.end(); ++it)
-    {
+	for (vector<JobEntry*>::iterator it = jobs.begin() ; it != jobs.end(); ++it){
 		int pid= (*it)->getPid();
 		cout<<pid<<":";
 		(*it)->printArgs((*it)->getJob(), (*it)->getNumOfArgs());

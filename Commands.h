@@ -136,14 +136,16 @@ class ChangeDirCommand : public BuiltInCommand {
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
+	int n;
  public:
   GetCurrDirCommand(const char* cmd_line);
-  virtual ~GetCurrDirCommand() = default;
+  virtual ~GetCurrDirCommand();
   void execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand {
 	pid_t pid;
+	int n;
  public:
   ShowPidCommand(const char* cmd_line);
   virtual ~ShowPidCommand();
@@ -241,11 +243,11 @@ class JobsList {
   void addJob(Command* cmd, pid_t pid, bool isStopped = false); //done
   void printJobsList(); //done
   void killAllJobs(); //done
-  void removeFinishedJobs();
+  void removeFinishedJobs(); //done
   JobEntry * getJobById(int jobId); //done
   void removeJobById(int jobId); //done
-  JobEntry * getLastJob(int* lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
+  JobEntry * getLastJob(int* lastJobId); //done
+  JobEntry *getLastStoppedJob(int *jobId); //done
   vector<JobEntry*> getJobs(){
 	  return this->jobs;
   }
@@ -304,6 +306,7 @@ class CopyCommand : public Command {
 class ChangePromptCommand : public BuiltInCommand {
 	const char* smash = "smash";
 	char prompt[80] = {0};
+	int n;
 	public:
 		ChangePromptCommand(const char* cmd_line);
 		virtual ~ChangePromptCommand() override;
@@ -316,6 +319,7 @@ class SmallShell {
   Command* current_command = nullptr;
   const pid_t smash_pid = getpid();
   pid_t current_fg_pid;
+  pid_t current_fg_gid;
   JobsList* jobs;
   char prompt[80] = "smash";
   char *plastPwd = nullptr;
@@ -338,7 +342,6 @@ class SmallShell {
   void setPlastPwd(char* pwd_new);
   JobsList* getJobs();
   void setCurrentFgPid(pid_t p){
-	  //cout<<"CURRENT FG PID:"<< p<<endl;
 	  this->current_fg_pid = p;
   }
   const pid_t getSmashPid() {
@@ -352,6 +355,12 @@ class SmallShell {
   }
   Command* getCurrentCommand(){
 	  return this->current_command;
+  }
+  void setCurrentFgGid(pid_t g){
+	  this->current_fg_gid = g;
+  }
+  pid_t getCurrentFgGid(){
+	  return this->current_fg_gid;
   }
   // TODO: add extra methods as needed
 };
