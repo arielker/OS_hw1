@@ -167,16 +167,17 @@ class JobsList {
  //JobEntry
  //----------- 
   class JobEntry {
-	  Command* cmd=nullptr;
+	  Command* cmd = nullptr;
 	  char* job[COMMAND_MAX_ARGS];
 	  pid_t pid;
 	  bool isStopped;
 	  time_t time;
 	  int numOfArgs;
+	  pid_t grp_id;
 	 public:
-	  JobEntry(Command* c,char** j, pid_t p, bool iS, time_t t, int n): pid(p), 
-	  isStopped(iS), time(t), numOfArgs(n) {
-		  cmd=c;
+	  JobEntry(Command* c,char** j, pid_t p, bool iS, time_t t, int n, pid_t g):
+	  pid(p), isStopped(iS), time(t), numOfArgs(n), grp_id(g) {
+		  cmd = c;
 		  for (int i = 0; i < n; i++) {
 			this->job[i] = (char*)(malloc (strlen(j[i]) + 1));
 			memcpy(this->job[i], j[i], strlen(j[i]) + 1);
@@ -231,6 +232,14 @@ class JobsList {
 	  void setNumOfArgs(int n){
 		  this->numOfArgs = n;
 	  }
+	  
+	  pid_t getGroupID(){
+		  return this->grp_id;
+	  }
+	  
+	  void setGroupID(pid_t g){
+		  this->grp_id = g;
+	  }
 		//-----------
 		//JobEntry
 		//----------- 
@@ -240,7 +249,7 @@ class JobsList {
  public:
   JobsList();
   ~JobsList();
-  void addJob(Command* cmd, pid_t pid, bool isStopped = false); //done
+  void addJob(Command* cmd, pid_t pid, bool isStopped = false, pid_t g = 0); //done
   void printJobsList(); //done
   void killAllJobs(); //done
   void removeFinishedJobs(); //done
@@ -259,7 +268,7 @@ class JobsCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~JobsCommand() = default;
+  virtual ~JobsCommand();
   void execute() override;
 };
 
@@ -267,7 +276,7 @@ class KillCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   KillCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~KillCommand() = default;
+  virtual ~KillCommand();
   void execute() override;
 };
 
@@ -276,7 +285,7 @@ class ForegroundCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   ForegroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~ForegroundCommand() = default;
+  virtual ~ForegroundCommand();
   void execute() override;
 };
 
@@ -285,12 +294,11 @@ class BackgroundCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~BackgroundCommand() {}
+  virtual ~BackgroundCommand();
   void execute() override;
 };
 
 
-// TODO: should it really inhirit from BuiltInCommand ?
 class CopyCommand : public Command {
 	char* cmd_without_bg_sign[COMMAND_MAX_ARGS];
 	int n;
@@ -317,6 +325,7 @@ class SmallShell {
  private:
   // TODO: Add your data members
   Command* current_command = nullptr;
+  Command* special_current_command = nullptr;
   const pid_t smash_pid = getpid();
   pid_t current_fg_pid;
   pid_t current_fg_gid;
@@ -361,6 +370,12 @@ class SmallShell {
   }
   pid_t getCurrentFgGid(){
 	  return this->current_fg_gid;
+  }
+  void setSpecialCurrentCommand(Command *c){
+	  this->special_current_command = c;
+  }
+  Command* getSpecialCurrentCommand(){
+	  return this->special_current_command;
   }
   // TODO: add extra methods as needed
 };

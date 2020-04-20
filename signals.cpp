@@ -10,7 +10,7 @@ using namespace std;
 
 void ctrlCHandler(int sig_num) {
 	SmallShell& smash = SmallShell::getInstance();
-	std::cout<<"smash: got ctrl-C"<<std::endl;
+	cout<<"smash: got ctrl-C"<<endl;
 	pid_t p = smash.getCurrentFgPid();
 	if(p != smash.getSmashPid()){
 		if(kill(p, SIGKILL) == -1){
@@ -18,23 +18,36 @@ void ctrlCHandler(int sig_num) {
 		} else {
 			cout << "smash: process " << p << " was killed" << endl;
 			smash.setCurrentFgPid(smash.getSmashPid());
+			smash.setCurrentFgGid(0);
 		}
 	}
-	
 }
 
 void ctrlZHandler(int sig_num) {
 	SmallShell& smash = SmallShell::getInstance();
-	std::cout<<"smash: got ctrl-Z"<<std::endl;
+	cout << "smash: got ctrl-Z" << endl;
 	pid_t p = smash.getCurrentFgPid();
-	//cout<<"CURRENT:"<<p<<" ACTUAL SMASH:"<<smash.getSmashPid()<<endl;
 	if(p != smash.getSmashPid()){
-		if(kill(p, SIGSTOP) == -1){
-			perror("smash error: kill failed");
+		if(smash.getCurrentFgGid() != 0){
+			if(killpg(smash.getCurrentFgGid(), SIGSTOP) == -1) {
+				perror("smash error: kill failed");
+				return;
+			}
+			else {
+				cout << "smash: process " << p << " was stopped" << endl;
+				smash.getJobs()->addJob(smash.getSpecialCurrentCommand(), p, true, smash.getCurrentFgGid());
+				smash.setCurrentFgPid(smash.getSmashPid());
+				smash.setCurrentFgGid(0);
+			}
 		} else {
-			cout << "smash: process " << p << " was stopped" << endl;
-			smash.getJobs()->addJob(smash.getCurrentCommand(), p, true);
-			smash.setCurrentFgPid(smash.getSmashPid());
+			if(kill(p, SIGSTOP) == -1){
+				perror("smash error: kill failed");
+			} else {
+				cout << "smash: process " << p << " was stopped" << endl;
+				smash.getJobs()->addJob(smash.getCurrentCommand(), p, true, 0);
+				smash.setCurrentFgPid(smash.getSmashPid());
+				smash.setCurrentFgGid(0);
+			}
 		}
 	}
 }
