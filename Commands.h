@@ -9,7 +9,6 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
-/* TODO: pay attention to this mind fuck "string"*/
 #include <string>
 #include <string.h>
 #include <time.h>
@@ -107,6 +106,7 @@ class RedirectionCommand : public Command {
 		strcpy(ret, a.c_str());
 		return ret;
 	}
+	
  public:
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand(){
@@ -165,7 +165,7 @@ class JobsList {
  //JobEntry
  //----------- 
   class JobEntry {
-	  Command* cmd=nullptr;
+	  Command* cmd = nullptr;
 	  char* job[COMMAND_MAX_ARGS];
 	  pid_t pid;
 	  bool isStopped;
@@ -241,7 +241,7 @@ class JobsList {
   void addJob(Command* cmd, pid_t pid, bool isStopped = false); //done
   void printJobsList(); //done
   void killAllJobs(); //done
-  void removeFinishedJobs();
+  void removeFinishedJobs(); //done
   JobEntry * getJobById(int jobId); //done
   void removeJobById(int jobId); //done
   JobEntry * getLastJob(int* lastJobId);
@@ -316,6 +316,8 @@ class SmallShell {
   Command* current_command = nullptr;
   const pid_t smash_pid = getpid();
   pid_t current_fg_pid;
+  pid_t pipe1_pid = 0;
+  pid_t pipe2_pid = 0;
   JobsList* jobs;
   char prompt[80] = "smash";
   char *plastPwd = nullptr;
@@ -352,6 +354,18 @@ class SmallShell {
   }
   Command* getCurrentCommand(){
 	  return this->current_command;
+  }
+  pid_t getPipe2Pid(){
+	  return this->pipe2_pid;
+  }
+  void setPipe2Pid(pid_t p){
+	  this->pipe2_pid = p;
+  }
+  void setPipe1Pid(pid_t p){
+	  this->pipe1_pid = p;
+  }
+  pid_t getPipe1Pid(){
+	  return this->pipe1_pid;
   }
   // TODO: add extra methods as needed
 };
