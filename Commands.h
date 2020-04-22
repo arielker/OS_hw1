@@ -157,7 +157,12 @@ class QuitCommand : public BuiltInCommand {
 	JobsList* j;
 	public:
 		QuitCommand(const char* cmd_line, JobsList* jobs);
-		virtual ~QuitCommand() = default;
+		virtual ~QuitCommand(){
+			//delete j;
+			for (int i = 0; i < numOfArgs; i++){
+				free(command[i]);
+			}
+		}
 		void execute() override;
 };
 
@@ -332,6 +337,7 @@ class SmallShell {
   JobsList* jobs;
   char prompt[80] = "smash";
   char *plastPwd = nullptr;
+  bool is_forked = false;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -376,6 +382,12 @@ class SmallShell {
   }
   Command* getSpecialCurrentCommand(){
 	  return this->special_current_command;
+  }
+  bool getIsForked(){
+	  return this->is_forked;
+  }
+  void setIsForked(bool b){
+	  this->is_forked = b;
   }
   // TODO: add extra methods as needed
 };
