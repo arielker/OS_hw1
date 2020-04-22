@@ -165,7 +165,7 @@ void ExternalCommand::execute() {
 				smash.setCurrentFgPid(smash.getSmashPid());
 			}
 		} else {
-			cout << "already forked" << endl;
+			//cout << "already forked" << endl;
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1) {
 				perror("smash error: execv failed");
@@ -173,17 +173,24 @@ void ExternalCommand::execute() {
 			}
 		}
 	} else {
-		pid_t pid = fork();
-		smash.getJobs()->addJob(this,pid);
-		if (pid == 0) {
-			//setpgrp();
+		if(!smash.getIsForked()){
+			pid_t pid = fork();
+			smash.getJobs()->addJob(this,pid);
+			if (pid == 0) {
+				//setpgrp();
+				int result = execv(this->bin_bash, this->external_args);
+				if(result == -1){
+					perror("smash error: execv failed");
+				}
+			} else if (pid < 0){
+				smash.setCurrentFgPid(getpid());
+				perror("smash error: fork failed");
+			}
+		} else {
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1){
 				perror("smash error: execv failed");
 			}
-		} else if (pid < 0){
-			smash.setCurrentFgPid(getpid());
-			perror("smash error: fork failed");
 		}
 	}
 }
@@ -222,8 +229,9 @@ void RedirectionCommand::execute(){
 						delete cmd;
 						return;
 					}
-					//dup2(open_res, 1);
+					smash.setIsForked(true);
 					cmd->execute();
+					smash.setIsForked(false);
 					if(-1 == close(open_res)){
 						perror("smash error: close failed");
 						delete cmd;
@@ -247,7 +255,9 @@ void RedirectionCommand::execute(){
 						perror("smash error: open failed");
 						return;
 					}
+					smash.setIsForked(true);
 					cmd->execute();
+					smash.setIsForked(false);
 					if(-1 == close(open_res)){
 						perror("smash error: close failed");
 						return;
@@ -266,9 +276,7 @@ void RedirectionCommand::execute(){
 			perror("smash error: fork failed");
 			return;
 		} else {
-			cout << pid << endl;
-			cout << getpgrp() << endl;
-			smash.getJobs()->addJob(this, pid, false, getpgrp());
+			smash.getJobs()->addJob(this, pid, false, pid);
 		}
 	} else { // not in background
 		if(strcmp(this->command[place_of_sign], append) == 0) { //append
@@ -284,7 +292,9 @@ void RedirectionCommand::execute(){
 					perror("smash error: open failed");
 					return;
 				}
+				smash.setIsForked(true);
 				cmd->execute();
+				smash.setIsForked(false);
 				if(-1 == close(open_res)){
 					perror("smash error: close failed");
 					return;
@@ -317,7 +327,9 @@ void RedirectionCommand::execute(){
 					perror("smash error: open failed");
 					return;
 				}
+				smash.setIsForked(true);
 				cmd->execute();
+				smash.setIsForked(false);
 				if(-1 == close(open_res)){
 					perror("smash error: close failed");
 					return;
@@ -356,11 +368,11 @@ CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line), n(0){
 
 CopyCommand::~CopyCommand(){
 	if(this->is_background){
-		for (int i = 0; i <this->n; i++) {
+		for (int i = 0; i < this->n; i++) {
 			free(cmd_without_bg_sign[i]);
 		}
 	}
-	for (int i = 0; i <this->numOfArgs; i++){
+	for (int i = 0; i < this->numOfArgs; i++){
 			free(command[i]);
 	}
 }
@@ -406,15 +418,27 @@ void CopyCommand::execute() {
 				}
 				count = read(file[0], buff, sizeof(buff));
 			}
-			close(file[0]);
-			close(file[1]);
+			if(close(file[0]) == -1){
+				perror("smash error: close failed");
+				if(close(file[1]) == -1){
+					perror("smash error: close failed");
+				}
+				kill(getpid(), SIGKILL);
+				return;
+			}
+			if(close(file[1]) == -1){
+				perror("smash error: close failed");
+				kill(getpid(), SIGKILL);
+				return;
+			}
 			kill(getpid(),SIGKILL);
-		} else if(pid>0){
+		} else if(pid > 0){
 			smash.getJobs()->addJob(this,pid);
-		}else{
+		} else {
 			perror("smash error: fork failed");
+			return;
 		}
-	} else {
+	} else { //not in background
 		pid_t pid = fork();
 		if(pid == 0){
 			char* sourceAddress=this->command[1];
@@ -431,6 +455,9 @@ void CopyCommand::execute() {
 			file[1] = open(destinationAddress, O_WRONLY | O_CREAT | O_TRUNC,0666);
 			if(file[1] == -1){
 				close(file[0]);
+				if(close(file[0]) == -1){
+					perror("smash error: close failed");
+				}
 				perror("smash error: open failed");
 				kill(getpid(), SIGKILL);
 				return;
@@ -453,8 +480,19 @@ void CopyCommand::execute() {
 				}
 				count = read(file[0], buff, sizeof(buff));
 			}
-			close(file[0]);
-			close(file[1]);
+			if(close(file[0]) == -1){
+				perror("smash error: close failed");
+				if(close(file[1]) == -1){
+					perror("smash error: close failed");
+				}
+				kill(getpid(), SIGKILL);
+				return;
+			}
+			if(close(file[1]) == -1){
+				perror("smash error: close failed");
+				kill(getpid(), SIGKILL);
+				return;
+			}
 			kill(getpid(),SIGKILL);
 		} else if (pid > 0){
 			smash.setCurrentFgPid(pid);
@@ -466,7 +504,7 @@ void CopyCommand::execute() {
 		}
 	}
 	smash.setCurrentFgPid(getpid());
-}	
+}
 
 //--------------------------------
 //Pipe Command
@@ -698,7 +736,6 @@ ShowPidCommand::~ShowPidCommand(){
 }
 
 void ShowPidCommand::execute(){
-	cout << "current pid is " << getpid() << endl;
 	cout << "smash pid is "<< pid << endl;
 }
 
@@ -898,10 +935,6 @@ void JobsList::removeFinishedJobs(){
 		pid_t pid = j->getPid();
 		res = waitpid(pid, &wstatus, WNOHANG);
 		if ((WIFEXITED(wstatus) || WIFSIGNALED(wstatus)) && pid == res){
-			/*cout << "res: " << res << endl;
-			cout << "pid: " << pid << endl;
-			cout << (WIFEXITED(wstatus)) << endl;
-			cout << (WIFSIGNALED(wstatus)) << endl;*/
 			JobEntry* temp = this->jobs[i - 1];
 			this->jobs.erase(this->jobs.begin() + (i - 1));
 			delete temp;
