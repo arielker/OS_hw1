@@ -150,7 +150,6 @@ void ExternalCommand::execute() {
 		if(!smash.getIsForked()){
 			pid_t pid = fork();
 			if (pid == 0) {
-				//setpgrp();
 				int result = execv(this->bin_bash, this->external_args);
 				if(result == -1) {
 					perror("smash error: execv failed");
@@ -177,7 +176,6 @@ void ExternalCommand::execute() {
 			pid_t pid = fork();
 			smash.getJobs()->addJob(this,pid);
 			if (pid == 0) {
-				//setpgrp();
 				int result = execv(this->bin_bash, this->external_args);
 				if(result == -1){
 					perror("smash error: execv failed");
@@ -496,7 +494,7 @@ void CopyCommand::execute() {
 			kill(getpid(),SIGKILL);
 		} else if (pid > 0){
 			smash.setCurrentFgPid(pid);
-			wait(nullptr);
+			waitpid(pid, nullptr, WUNTRACED);
 			smash.setCurrentFgPid(getpid());
 		} else {
 			smash.setCurrentFgPid(getpid());
@@ -915,19 +913,6 @@ void JobsList::killAllJobs(){
 		kill((*it)->getPid(),SIGKILL);
 	}
 }
-
-/*void JobsList::removeFinishedJobs(){
-	int i = 1;
-	for(JobEntry* j :this->jobs){
-		if(kill(j->getPid(), 0) == -1 || waitpid(j->getPid(), nullptr, WNOHANG)) {
-			JobEntry* temp = this->jobs[i - 1];
-			this->jobs.erase(this->jobs.begin() + (i - 1));
-			delete temp;
-			continue;
-		}
-		i++;
-	}
-}*/
 
 void JobsList::removeFinishedJobs(){
 	int i = 1, wstatus = 0, res = 0;
