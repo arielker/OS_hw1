@@ -579,14 +579,21 @@ void PipeCommand::execute(){
 					smash.setIsForked(false);
 					kill(getpid(), SIGKILL);
 				} else if(pid1 > 0){
-					waitpid(pid1, nullptr, WUNTRACED);
-					close(0);
-					close(my_pipe[1]);
-					dup2(my_pipe[0], 0);
-					smash.setIsForked(true);
-					cmd_reads->execute();
-					smash.setIsForked(false);
-					close(my_pipe[0]);
+					pid_t pid2 = fork();
+					if(pid2 == 0){
+						//waitpid(pid1, nullptr, WUNTRACED);
+						close(0);
+						close(my_pipe[1]);
+						dup2(my_pipe[0], 0);
+						smash.setIsForked(true);
+						cmd_reads->execute();
+						smash.setIsForked(false);
+						close(my_pipe[0]);
+					} else if(pid2 == -1){
+						perror("smash error: fork failed");
+					} else {
+						while(wait(nullptr) != -1);
+					}
 				} else {
 					perror("smash error: fork failed");
 				}
@@ -606,14 +613,21 @@ void PipeCommand::execute(){
 					smash.setIsForked(false);
 					kill(getpid(), SIGKILL);
 				} else if(pid1 > 0){
-					waitpid(pid1, nullptr, WUNTRACED);
-					close(0);
-					close(my_pipe[1]);
-					dup2(my_pipe[0],0);
-					smash.setIsForked(true);
-					cmd_reads->execute();
-					smash.setIsForked(false);
-					close(my_pipe[0]);
+					pid_t pid2 = fork();
+					if(pid2 == 0){
+						//waitpid(pid1, nullptr, WUNTRACED);
+						close(0);
+						close(my_pipe[1]);
+						dup2(my_pipe[0],0);
+						smash.setIsForked(true);
+						cmd_reads->execute();
+						smash.setIsForked(false);
+						close(my_pipe[0]);
+					} else if(pid2 == -1){
+						perror("smash error: fork failed");
+					} else {
+						while(wait(nullptr) != -1);
+					}
 				} else {
 					perror("smash error: fork failed");
 				}
@@ -646,16 +660,23 @@ void PipeCommand::execute(){
 					close(my_pipe[1]);
 					kill(getpid(), SIGKILL);
 				} else if(pid1 > 0){
-					smash.setCurrentFgPid(pid1);
-					waitpid(pid1, nullptr, WUNTRACED);
-					close(0);
-					close(my_pipe[1]);
-					smash.setCurrentFgPid(getpid());
-					dup2(my_pipe[0],0);
-					smash.setIsForked(true);
-					cmd_reads->execute(); 
-					smash.setIsForked(false);
-					close(my_pipe[0]);
+					//smash.setCurrentFgPid(pid1);
+					//waitpid(pid1, nullptr, WUNTRACED);
+					pid_t pid2 = fork();
+					if(pid2 == 0){
+						close(0);
+						close(my_pipe[1]);
+						smash.setCurrentFgPid(getpid());
+						dup2(my_pipe[0],0);
+						smash.setIsForked(true);
+						cmd_reads->execute(); 
+						smash.setIsForked(false);
+						close(my_pipe[0]);
+					} else if (pid2 == -1){
+						perror("smash error: fork failed");
+					} else {
+						while(wait(nullptr) != -1);
+					}
 				} else {
 					smash.setCurrentFgPid(getpid());
 					perror("smash error: fork failed");
@@ -677,16 +698,23 @@ void PipeCommand::execute(){
 					close(my_pipe[1]);
 					kill(getpid(), SIGKILL);
 				} else if(pid1 > 0){
-					smash.setCurrentFgPid(pid1);
-					waitpid(pid1, nullptr, WUNTRACED);
-					close(0);
-					close(my_pipe[1]);
-					smash.setCurrentFgPid(getpid());
-					dup2(my_pipe[0],0);
-					smash.setIsForked(true);
-					cmd_reads->execute(); 
-					smash.setIsForked(false);
-					close(my_pipe[0]);
+					pid_t pid2 = fork();
+					if(pid2 == 0){
+						//smash.setCurrentFgPid(pid1);
+						//waitpid(pid1, nullptr, WUNTRACED);
+						close(0);
+						close(my_pipe[1]);
+						smash.setCurrentFgPid(getpid());
+						dup2(my_pipe[0],0);
+						smash.setIsForked(true);
+						cmd_reads->execute(); 
+						smash.setIsForked(false);
+						close(my_pipe[0]);
+					} else if (pid2 == -1){
+						perror("smash error: fork failed");
+					} else {
+						while(wait(nullptr) != -1);
+					}
 				} else {
 					smash.setCurrentFgPid(getpid());
 					perror("smash error: fork failed");
