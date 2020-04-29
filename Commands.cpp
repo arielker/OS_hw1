@@ -7,10 +7,10 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 
 #if 0
 #define FUNC_ENTRY()  \
-  cerr << PRETTY_FUNCTION << " --> " << endl;
+  cerr << __PRETTY_FUNCTION__ << " --> " << endl;
 
 #define FUNC_EXIT()  \
-  cerr << PRETTY_FUNCTION << " <-- " << endl;
+  cerr << __PRETTY_FUNCTION__ << " <-- " << endl;
 #else
 #define FUNC_ENTRY()
 #define FUNC_EXIT()
@@ -76,9 +76,7 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
- static int findRedirectionCommand(char** a, int n);
- static int findPipeCommand(char** a, int n);
- static void destroyTemp (char** a, int n);
+static void destroyTemp (char** a, int n);
 
 //--------------------------------
 //Command
@@ -150,10 +148,12 @@ void ExternalCommand::execute() {
 		if(!smash.getIsForked()){
 			pid_t pid = fork();
 			if (pid == 0) {
+				setpgrp();
 				int result = execv(this->bin_bash, this->external_args);
 				if(result == -1) {
 					perror("smash error: execv failed");
 					smash.setCurrentFgPid(smash.getSmashPid());
+					exit(0);
 				}
 			} else if (pid > 0) {
 				smash.setCurrentFgPid(pid);
@@ -164,30 +164,34 @@ void ExternalCommand::execute() {
 				smash.setCurrentFgPid(smash.getSmashPid());
 			}
 		} else {
-			//cout << "already forked" << endl;
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1) {
 				perror("smash error: execv failed");
 				smash.setCurrentFgPid(smash.getSmashPid());
+				exit(0);
 			}
 		}
 	} else {
 		if(!smash.getIsForked()){
 			pid_t pid = fork();
-			smash.getJobs()->addJob(this,pid);
 			if (pid == 0) {
+				setpgrp();
 				int result = execv(this->bin_bash, this->external_args);
 				if(result == -1){
 					perror("smash error: execv failed");
+					exit(0);
 				}
 			} else if (pid < 0){
 				smash.setCurrentFgPid(getpid());
 				perror("smash error: fork failed");
+			} else {
+				smash.getJobs()->addJob(this,pid);
 			}
 		} else {
 			int result = execv(this->bin_bash, this->external_args);
 			if(result == -1){
 				perror("smash error: execv failed");
+				exit(0);
 			}
 		}
 	}
@@ -199,29 +203,44 @@ void ExternalCommand::execute() {
 
 RedirectionCommand::RedirectionCommand(const char* cmd_line): 
 Command(cmd_line){
+	this->cmd_line_tmp = string(cmd_line);
+	this->red_sign_len = 0;
+	this->red_index = 0;
+	this->is_append = true;
+	if((red_index = cmd_line_tmp.find(">>")) != string::npos){
+		this->red_sign_len = 2;
+	} else if((red_index = cmd_line_tmp.find(">")) != string::npos) {
+		this->red_sign_len = 1;
+		this->is_append = false;
+	}
 	this->is_background = _isBackgroundComamnd(cmd_line);
 	if(this->is_background){
 		char* temp = const_cast<char*>(cmd_line);
 		_removeBackgroundSign(temp);
-		_parseCommandLine(temp, this->cmd_without_bg_sign);
+		string t1 = string(temp);
+		_trim(t1);
+		this->file_name = t1.substr(red_index + red_sign_len, cmd_line_tmp.size() - red_index - red_sign_len);
+		this->file_name = _trim(this->file_name);
+	} else {
+		file_name = this->cmd_line_tmp.substr(red_index + red_sign_len, cmd_line_tmp.size() - red_index - red_sign_len);
+		file_name = _trim(file_name);
 	}
-	this->place_of_sign = findRedirectionCommand(this->command, this->numOfArgs);
 }
 
 void RedirectionCommand::execute(){
 	SmallShell& smash = SmallShell::getInstance();
+	string cmd_line_until_sign = this->cmd_line_tmp.substr(0, red_index);
+	cmd_line_until_sign = _trim(cmd_line_until_sign);
+	Command* cmd = smash.CreateCommand(cmd_line_until_sign.c_str());
 	if(this->is_background){ //in background
-		char* cmd_line_until_sign = this->create_cmd_command();
-		Command* cmd = smash.CreateCommand(cmd_line_until_sign);
-		free(cmd_line_until_sign);
 		pid_t pid = fork();
 		if(pid == 0){
 			setpgrp();
-			if(strcmp(this->command[place_of_sign], append) == 0) { //append
+			if(this->is_append) { //append
 				pid_t pid1 = fork();
 				if(pid1 == 0){
 					close(1);
-					int open_res = open(cmd_without_bg_sign[place_of_sign + 1], O_WRONLY | O_APPEND | O_CREAT, 0666);
+					int open_res = open(file_name.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0666);
 					if (open_res == -1) {
 						perror("smash error: open failed");
 						delete cmd;
@@ -248,7 +267,7 @@ void RedirectionCommand::execute(){
 				pid_t pid1 = fork();
 				if(pid1 == 0){
 					close(1);
-					int open_res = open(cmd_without_bg_sign[place_of_sign + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+					int open_res = open(file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
 					if (open_res == -1){
 						perror("smash error: open failed");
 						return;
@@ -277,15 +296,12 @@ void RedirectionCommand::execute(){
 			smash.getJobs()->addJob(this, pid, false, pid);
 		}
 	} else { // not in background
-		if(strcmp(this->command[place_of_sign], append) == 0) { //append
-			char* cmd_line_until_sign = this->create_cmd_command();
-			Command* cmd = smash.CreateCommand(cmd_line_until_sign);
-			free(cmd_line_until_sign);
+		if(this->is_append) { //append
 			pid_t pid = fork();
 			if(pid == 0){
 				setpgrp();
 				close(1);
-				int open_res = open(this->command[place_of_sign + 1], O_WRONLY | O_APPEND | O_CREAT, 0666);
+				int open_res = open(file_name.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0666);
 				if (open_res == -1){
 					perror("smash error: open failed");
 					return;
@@ -313,14 +329,11 @@ void RedirectionCommand::execute(){
 				return;
 			}
 		} else { //override
-			char* cmd_line_until_sign = this->create_cmd_command();
-			Command* cmd = smash.CreateCommand(cmd_line_until_sign);
-			free(cmd_line_until_sign);
 			pid_t pid = fork();
 			if(pid == 0){
 				setpgrp();
 				close(1);
-				int open_res = open(this->command[place_of_sign + 1], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+				int open_res = open(file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
 				if (open_res == -1){
 					perror("smash error: open failed");
 					return;
@@ -382,7 +395,7 @@ void CopyCommand::execute() {
 		if(pid == 0){
 			char* sourceAddress = this->cmd_without_bg_sign[1];
 			char* destinationAddress = this->cmd_without_bg_sign[2];
-			char buff[1024];
+			char buff[4096];
 			ssize_t count;
 			int file[2];
 			file[0]= open(sourceAddress,O_RDONLY);
@@ -441,7 +454,7 @@ void CopyCommand::execute() {
 		if(pid == 0){
 			char* sourceAddress=this->command[1];
 			char* destinationAddress=this->command[2];
-			char buff[1024];
+			char buff[4096];
 			ssize_t count;
 			int file[2];
 			file[0] = open(sourceAddress,O_RDONLY);
@@ -509,40 +522,48 @@ void CopyCommand::execute() {
 //--------------------------------
 
 PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line){
+	this->cmd_line_tmp = string(cmd_line);
+	this->pipe_sign_len = 0;
+	this->pipe_index = 0;
+	this->is_err_to_in = true;
 	this->is_background = _isBackgroundComamnd(cmd_line);
+	if((pipe_index = cmd_line_tmp.find("|&")) != string::npos){
+		this->pipe_sign_len = 2;
+	} else if((pipe_index = cmd_line_tmp.find("|")) != string::npos) {
+		this->pipe_sign_len = 1;
+		this->is_err_to_in = false;
+	}
+	this->cmd1 = this->cmd_line_tmp.substr(0, pipe_index);
+	this->cmd1 = _trim(cmd1);
 	if(this->is_background){
 		char* temp = const_cast<char*>(cmd_line);
 		_removeBackgroundSign(temp);
-		_parseCommandLine(temp, this->cmd_without_bg_sign);
+		string t1 = string(temp);
+		_trim(t1);
+		this->cmd2 = t1.substr(pipe_index + pipe_sign_len, cmd_line_tmp.size() - pipe_index - pipe_sign_len);
+		this->cmd2 = _trim(this->cmd2);
+	} else {
+		this->cmd2 = this->cmd_line_tmp.substr(pipe_index + pipe_sign_len, cmd_line_tmp.size() - pipe_index - pipe_sign_len);
+		this->cmd2 = _trim(this->cmd2);
 	}
-	this->place_of_sign = findPipeCommand(this->command, this->numOfArgs);
 }
 
 PipeCommand::~PipeCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
 	}
-	for (int i = 0; i < numOfArgs; i++) {
-		if(this->is_background){
-			free(this->cmd_without_bg_sign[i]);
-		}
-	}
 }
 
 void PipeCommand::execute(){
 	SmallShell& smash = SmallShell::getInstance();
-	char* cmd_line_until_sign = this->create_cmd_command(true);
-	char* cmd_line_after_sign = this->create_cmd_command(false);
-	Command* cmd_writes = smash.CreateCommand(cmd_line_until_sign);
-	Command* cmd_reads = smash.CreateCommand(cmd_line_after_sign);
-	free(cmd_line_until_sign);
-	free(cmd_line_after_sign);
+	Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
+	Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 	if(this->is_background){ //in background
 		pid_t pid = fork();
 		if(pid == 0){
 			setpgrp();
 			int my_pipe[2];
-			if(strcmp(this->command[place_of_sign], err_to_in) == 0){  //error to in
+			if(this->is_err_to_in){  //error to in
 				if(pipe(my_pipe) == -1){
 					perror("smash error: pipe failed");
 					kill(getpid(), SIGKILL);
@@ -609,7 +630,7 @@ void PipeCommand::execute(){
 			setpgrp();
 			smash.setCurrentFgGid(getpgrp());
 			int my_pipe[2];
-			if(strcmp(this->command[place_of_sign], err_to_in) == 0){ //error to in
+			if(this->is_err_to_in){ //error to in
 				if(pipe(my_pipe) == -1){
 					perror("smash error: pipe failed");
 					kill(getpid(), SIGKILL);
@@ -752,12 +773,13 @@ GetCurrDirCommand::~GetCurrDirCommand(){
 }
 
 void GetCurrDirCommand::execute(){
-	char dirpath[COMMAND_ARGS_MAX_LENGTH];
-	if(nullptr == getcwd(dirpath,COMMAND_ARGS_MAX_LENGTH)){
-		perror("smash error: getcwd failed");
+	char* dirpath = get_current_dir_name();
+	if(nullptr == dirpath){
+		perror("smash error: get_current_dir_name failed");
 		return;
 	}
 	cout << dirpath <<endl;
+	free(dirpath);
 }
 
 //--------------------------------
@@ -983,9 +1005,20 @@ void KillCommand::execute(){
 		cout << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
-	int signum = (-1)*(atoi(command[1]));
+	int signum;
+	if(strcmp(command[1], "-0") == 0){
+		signum = 0;
+	} else {
+		if(atoi(command[1]) == 0){
+			cout << "smash error: kill: invalid arguments" << endl;
+			return;
+		}
+		else {
+			signum = (-1)*(atoi(command[1]));
+		}
+	}
 	int job_id = atoi(command[2]);
-	if(signum <= 0 || job_id <= 0){
+	if(signum < 0 || signum > 31){
 		cout << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
@@ -1242,30 +1275,6 @@ static void destroyTemp (char** a, int n){
 }
 
 /**
- * find Pipe sign
- **/
- static int findPipeCommand(char** a, int n) {
-	 for (int i = 1; i < n; i++) {
-		 if (strcmp(a[i], "|") == 0 || strcmp(a[i], "|&") == 0){
-			 return i;
-		 }
-	 }
-	 return -1;
- }
-
-/**
- * find Redirection sign
- **/
- static int findRedirectionCommand(char** a, int n){
-	 for (int i = 1; i < n; i++) {
-		 if (strcmp(a[i], ">") == 0 || strcmp(a[i], ">>") == 0){
-			 return i;
-		 }
-	 }
-	 return -1;
- }
-
-/**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
@@ -1275,15 +1284,15 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	if(n == 0){
 		return nullptr;
 	}
-	if(n >= 3 && findRedirectionCommand(temp, n) > 0){
-		destroyTemp(temp, n);
-		RedirectionCommand *c = new RedirectionCommand(cmd_line);
+	if((string(cmd_line)).find_first_of(">") != string::npos){
+		destroyTemp(temp,n);
+		RedirectionCommand* c = new RedirectionCommand(cmd_line);
 		this->setSpecialCurrentCommand(c);
 		return c;
 	}
-	if(n >= 3 && findPipeCommand(temp, n) > 0){
-		destroyTemp(temp, n);
-		PipeCommand *c = new PipeCommand(cmd_line);
+	if((string(cmd_line)).find_first_of("|") != string::npos){
+		destroyTemp(temp,n);
+		PipeCommand* c = new PipeCommand(cmd_line);
 		this->setSpecialCurrentCommand(c);
 		return c;
 	}
