@@ -147,9 +147,10 @@ class JobsList {
 	  time_t time;
 	  int numOfArgs;
 	  pid_t grp_id;
+	  int job_id;
 	 public:
-	  JobEntry(Command* c,char** j, pid_t p, bool iS, time_t t, int n, pid_t g):
-	  pid(p), isStopped(iS), time(t), numOfArgs(n), grp_id(g) {
+	  JobEntry(Command* c,char** j, pid_t p, bool iS, time_t t, int n, pid_t g, int jid):
+	  pid(p), isStopped(iS), time(t), numOfArgs(n), grp_id(g), job_id(jid) {
 		  cmd = c;
 		  for (int i = 0; i < n; i++) {
 			this->job[i] = (char*)(malloc (strlen(j[i]) + 1));
@@ -160,6 +161,9 @@ class JobsList {
 	  ~JobEntry(){
 		  for (int i = 0; i < numOfArgs; i++) {
 			  free(this->job[i]);
+		  }
+		  if(nullptr != this->cmd){
+			delete this->cmd;
 		  }
 	  }
 	  
@@ -212,6 +216,14 @@ class JobsList {
 	  
 	  void setGroupID(pid_t g){
 		  this->grp_id = g;
+	  }
+	  
+	  int getJobId(){
+		  return this->job_id;
+	  }
+	  
+	  void setJobId(int j){
+		  this->job_id = j;
 	  }
 		//-----------
 		//JobEntry

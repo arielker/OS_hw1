@@ -87,9 +87,9 @@ Command::Command(const char* cmd_line) : is_background(false) {
 }
 
 Command::~Command(){
-	for (int i = 0; i < numOfArgs; i++) {
+	/*for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
-	}
+	}*///THIS CAUSES SEG FAULTS
 }
 
 //--------------------------------
@@ -874,23 +874,30 @@ JobsList::~JobsList(){
 }
 
 void JobsList::addJob(Command* cmd,pid_t pid, bool isStopped, pid_t g){
+	FUNC_ENTRY()
 	this->removeFinishedJobs();
 	time_t t;
 	time(&t);
 	pid_t p = pid;
-	JobEntry* j = new JobEntry(cmd,cmd->getCommand(), p, isStopped, t, cmd->getNumOfArgs(), g);
-	(this->jobs).push_back(j);
+	int max = 0;
+	for(JobEntry* j : this->jobs){
+		if(nullptr != j && j->getJobId() > max){
+			max = j->getJobId();
+		}
+	}
+	JobEntry* j = new JobEntry(cmd,cmd->getCommand(), p, isStopped, t, cmd->getNumOfArgs(), g, max + 1);
+	(this->jobs).push_back(j); // insert at max + 1 ?
+	FUNC_EXIT()
 }
 
 void JobsList::printJobsList(){
 	this->removeFinishedJobs();
-	int i = 1;
 	for(JobEntry* j : this->jobs){
 		if(j->getIsStopped()){
 			time_t t;
 			time(&t);
 			time_t elapsed = difftime(t, j->getTime());
-			cout<< "[" << i << "]";
+			cout<< "[" << j->getJobId() << "]";
 			j->printArgs(j->getJob(), j->getNumOfArgs());
 			cout << " : " << j->getPid() << " "
 			<< elapsed << " secs (stopped)" << endl;
@@ -898,12 +905,11 @@ void JobsList::printJobsList(){
 			time_t t;
 			time(&t);
 			time_t elapsed = difftime(t, j->getTime());
-			cout << "[" << i << "]";
+			cout << "[" << j->getJobId() << "]";
 			j->printArgs(j->getJob(), j->getNumOfArgs());
 			cout << " : " << j->getPid() << " "
 			<< elapsed << " secs" << endl;
 		}
-		i++;
 	}
 }
 
@@ -912,19 +918,34 @@ void JobsList::printJobsList(){
 	if(((int)(this->jobs).size()) < jobId || jobId < 0){
 		 return nullptr;
 	}
-	return (this->jobs)[jobId - 1]; 
+	for(JobEntry* j : this->jobs){
+		if(j->getJobId() == jobId){
+			return j;
+		}
+	}
+	return nullptr;
 }
 
 void JobsList::removeJobById(int jobId){
 	this->removeFinishedJobs();
-	//jobId means the place in the vector minus 1
 	int size = this->jobs.size();
 	if(jobId < 1 || jobId > size){
 		return;
 	}
-	JobEntry* temp = this->jobs[jobId - 1];
-	this->jobs.erase(this->jobs.begin() + (jobId - 1));
-	delete temp;
+	//JobEntry* temp = this->jobs[jobId - 1];
+	//this->jobs.erase(this->jobs.begin() + (jobId - 1));
+	//delete temp;
+	//int i = 0;
+	auto j = this->jobs.begin();
+	while(j != this->jobs.end()){
+		if((*j)->getJobId() == jobId){
+			JobEntry* temp = *j;
+			this->jobs.erase(j);
+			delete temp;
+			break;
+		}
+		j++;
+	}
 }
 
 JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
@@ -965,22 +986,26 @@ void JobsList::killAllJobs(){
 }
 
 void JobsList::removeFinishedJobs(){
-	int i = 1, wstatus = 0, res = 0;
-	for(auto j : this->jobs){
-		pid_t pid = j->getPid();
+	FUNC_ENTRY()
+	int i = 0, wstatus = 0, res = 0;
+	auto j = this->jobs.begin();
+	while(j != this->jobs.end()){
+		pid_t pid = (*j)->getPid();
 		res = waitpid(pid, &wstatus, WNOHANG);
 		if ((WIFEXITED(wstatus) || WIFSIGNALED(wstatus)) && pid == res){
-			JobEntry* temp = this->jobs[i - 1];
-			this->jobs.erase(this->jobs.begin() + (i - 1));
+			JobEntry* temp = *j;
+			this->jobs.erase(j);
 			delete temp;
+			j = this->jobs.begin();
 			continue;
 		} else {
 			if(res == -1){
 				perror("smash error: waitpid failed");
 			}
 		}
-		i++;
+		j++;
 	}
+	FUNC_EXIT()
 }
 
 //--------------------------------
@@ -1003,12 +1028,21 @@ void JobsCommand::execute(){
 }
 
 JobsList::JobEntry* JobsList::getLastJob(int* last_job_id){
+	FUNC_ENTRY()
 	if(this->jobs.empty()){
 		return nullptr;
 	}
-	int size = this->jobs.size();
-	*last_job_id = size;
-	return this->jobs[size - 1];
+	JobEntry* jmax;
+	int max=0;
+	for(JobEntry* j : this->jobs){
+		if(nullptr != j && j->getJobId() > max){
+			max = j->getJobId();
+			jmax=j;
+		}
+	}
+	*last_job_id = max;
+	return jmax;
+	FUNC_EXIT()
 }
 
 //--------------------------------
@@ -1096,6 +1130,7 @@ void ForegroundCommand::execute(){
 	int last_job_id = 0;
 	SmallShell& s = SmallShell::getInstance();
 	if(this->numOfArgs == 2){
+		int wstatus = 0;
 		int job_id = atoi(this->command[1]);
 		JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
 		if(j_entry == nullptr){
@@ -1109,7 +1144,6 @@ void ForegroundCommand::execute(){
 			if(kill(pid, SIGCONT) == 0){
 				s.setCurrentFgPid(pid);
 				s.setCurrentFgGid(0);
-				int wstatus = 0;
 				s.setCurrentCommand(j_entry->getCmd());
 				pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 				if(result != pid){
@@ -1124,7 +1158,6 @@ void ForegroundCommand::execute(){
 			if(killpg(j_entry->getGroupID(), SIGCONT) == 0){
 				s.setCurrentFgPid(j_entry->getPid());
 				s.setCurrentFgGid(j_entry->getGroupID());
-				int wstatus = 0;
 				s.setSpecialCurrentCommand(j_entry->getCmd());
 				pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 				if(result != pid){
@@ -1136,8 +1169,10 @@ void ForegroundCommand::execute(){
 				return;
 			}
 		}
-		this->j->removeJobById(job_id);
+		
+		// this->j->removeJobById(job_id);
 	} else if (this->numOfArgs == 1) {
+		int wstatus = 0;
 		JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
 		if(nullptr == j_entry){
 			cout << "smash error: fg: jobs list is empty" << endl;
@@ -1149,7 +1184,6 @@ void ForegroundCommand::execute(){
 			if(kill(j_entry->getPid(), SIGCONT) == 0){
 				s.setCurrentFgPid(j_entry->getPid());
 				s.setCurrentFgGid(0);
-				int wstatus = 0;
 				s.setCurrentCommand(j_entry->getCmd());
 				pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 				if(result != pid){
@@ -1164,7 +1198,6 @@ void ForegroundCommand::execute(){
 			if(killpg(j_entry->getGroupID(), SIGCONT) == 0){
 				s.setCurrentFgPid(j_entry->getPid());
 				s.setCurrentFgGid(j_entry->getGroupID());
-				int wstatus = 0;
 				s.setSpecialCurrentCommand(j_entry->getCmd());
 				pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 				if(result != pid){
@@ -1176,7 +1209,7 @@ void ForegroundCommand::execute(){
 				return;
 			}
 		}
-		this->j->removeJobById(last_job_id);
+		// this->j->removeJobById(last_job_id);
 	}
 }
 
@@ -1306,6 +1339,7 @@ static void destroyTemp (char** a, int n){
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
+	FUNC_ENTRY()
 	// For example:
 	char* temp[COMMAND_MAX_ARGS] = {0};
 	int n = _parseCommandLine(cmd_line, temp);
@@ -1388,8 +1422,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	
 	
 	ExternalCommand *c = new ExternalCommand(cmd_line);
+	destroyTemp(temp, n);
 	this->setCurrentCommand(c);
 	return c;
+	FUNC_EXIT()
 	//return nullptr;
 }
 
