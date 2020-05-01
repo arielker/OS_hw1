@@ -1324,7 +1324,12 @@ BuiltInCommand(cmd_line){
 }
 
 void QuitCommand::execute(){
-	if((this->numOfArgs >= 2) && strcmp(this->command[1],"kill") == 0) {
+	bool flag=false;
+	for(int i=0;i<COMMAND_MAX_ARGS;i++){
+		if(this->command[i] != nullptr 
+		&& strcmp(this->command[i],"kill") == 0) flag=true;
+	}
+	if((this->numOfArgs >= 2) && flag) {
 		j->killAllJobs();
 	}
 	exit(0);
