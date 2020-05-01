@@ -588,7 +588,6 @@ void PipeCommand::execute(){
 				} else if(pid1 > 0){
 					pid_t pid2 = fork();
 					if(pid2 == 0){
-						//waitpid(pid1, nullptr, WUNTRACED);
 						close(0);
 						close(my_pipe[1]);
 						dup2(my_pipe[0], 0);
@@ -599,6 +598,8 @@ void PipeCommand::execute(){
 					} else if(pid2 == -1){
 						perror("smash error: fork failed");
 					} else {
+						close(my_pipe[1]);
+						close(my_pipe[0]);
 						while(wait(nullptr) != -1);
 					}
 				} else {
@@ -622,7 +623,6 @@ void PipeCommand::execute(){
 				} else if(pid1 > 0){
 					pid_t pid2 = fork();
 					if(pid2 == 0){
-						//waitpid(pid1, nullptr, WUNTRACED);
 						close(0);
 						close(my_pipe[1]);
 						dup2(my_pipe[0],0);
@@ -633,6 +633,8 @@ void PipeCommand::execute(){
 					} else if(pid2 == -1){
 						perror("smash error: fork failed");
 					} else {
+						close(my_pipe[1]);
+						close(my_pipe[0]);
 						while(wait(nullptr) != -1);
 						smash.setIsForked(false);
 					}
@@ -669,8 +671,6 @@ void PipeCommand::execute(){
 					kill(getpid(), SIGKILL);
 					exit(0);
 				} else if(pid1 > 0){
-					//smash.setCurrentFgPid(pid1);
-					//waitpid(pid1, nullptr, WUNTRACED);
 					pid_t pid2 = fork();
 					if(pid2 == 0){
 						close(0);
@@ -685,6 +685,8 @@ void PipeCommand::execute(){
 					} else if (pid2 == -1){
 						perror("smash error: fork failed");
 					} else {
+						close(my_pipe[1]);
+						close(my_pipe[0]);
 						while(wait(nullptr) != -1);
 					}
 				} else {
@@ -711,25 +713,22 @@ void PipeCommand::execute(){
 				} else if(pid1 > 0){
 					pid_t pid2 = fork();
 					if(pid2 == 0){
-						//smash.setCurrentFgPid(pid1);
-						//waitpid(pid1, nullptr, WUNTRACED);
 						cout<<"Inside second fork"<<endl;
 						close(0);
 						close(my_pipe[1]);
 						smash.setCurrentFgPid(getpid());
 						dup2(my_pipe[0],0);
 						smash.setIsForked(true);
-						cout<<"b4 execute"<<endl;
 						cmd_reads->execute(); 
-						cout<<"after execute"<<endl;
 						smash.setIsForked(false);
 						close(my_pipe[0]);
 						kill(getpid(),SIGKILL);
 					} else if (pid2 == -1){
 						perror("smash error: fork failed");
 					} else {
+						close(my_pipe[1]);
+						close(my_pipe[0]);
 						while(wait(nullptr) != -1);
-						cout<<"after wait"<<endl;
 					}
 				} else {
 					smash.setCurrentFgPid(getpid());
@@ -1324,10 +1323,11 @@ BuiltInCommand(cmd_line){
 }
 
 void QuitCommand::execute(){
-	bool flag=false;
-	for(int i=0;i<COMMAND_MAX_ARGS;i++){
-		if(this->command[i] != nullptr 
-		&& strcmp(this->command[i],"kill") == 0) flag=true;
+	bool flag = false;
+	for(int i = 0; i < COMMAND_MAX_ARGS; i++){
+		if(this->command[i] != nullptr && strcmp(this->command[i],"kill") == 0){
+			flag = true;
+		}
 	}
 	if((this->numOfArgs >= 2) && flag) {
 		j->killAllJobs();
@@ -1408,6 +1408,13 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	}
 	if(strcmp(temp[0], "cd") == 0){
 		destroyTemp(temp, n);
+		if(n == 1){
+			return nullptr;
+		}
+		cout << temp[1] << endl;
+		if (n == 2 && strcmp(temp[1], "&") == 0){
+			return nullptr;
+		}
 		ChangeDirCommand* c = new ChangeDirCommand(cmd_line, &(this->plastPwd));
 		this->setCurrentCommand(c);
 		return c;
