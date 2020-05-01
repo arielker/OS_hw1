@@ -4,4 +4,4 @@ Makefile
 smash
 Commands
 signals
-..gitignore.un~
+*.un~
