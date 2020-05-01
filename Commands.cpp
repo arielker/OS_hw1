@@ -477,7 +477,6 @@ void CopyCommand::execute() {
 			}
 			file[1] = open(destinationAddress, O_WRONLY | O_CREAT | O_TRUNC,0666);
 			if(file[1] == -1){
-				close(file[0]);
 				if(close(file[0]) == -1){
 					perror("smash error: close failed");
 				}
