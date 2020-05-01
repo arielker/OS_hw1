@@ -866,7 +866,7 @@ void ChangeDirCommand::execute(){
 	char temp [COMMAND_ARGS_MAX_LENGTH] = {0};
 	getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
 	if(numOfArgs > 2 && strcmp(this->command[2], "&") != 0){
-		cout << "smash error: cd: too many arguments" << endl;
+		cerr << "smash error: cd: too many arguments" << endl;
 		return;
 	}
 	if(strcmp(command[1], "&") == 0){
@@ -877,7 +877,7 @@ void ChangeDirCommand::execute(){
 	t1 =_trim(t1); 
 	if(strcmp(t1.c_str(), "-") == 0) {
 		if(this->lastPwd == nullptr){
-			cout << "smash error: cd: OLDPWD not set" << endl;
+			cerr << "smash error: cd: OLDPWD not set" << endl;
 			return;
 		} else {
 			if(chdir(this->lastPwd) == -1){
@@ -1121,12 +1121,12 @@ void KillCommand::execute(){
 			flag = true;
 		}
 		if(!flag) {	
-			cout << "smash error: kill: invalid arguments" << endl;
+			cerr << "smash error: kill: invalid arguments" << endl;
 			return;
 		}
 	}
 	if(this->numOfArgs == 3 && strcmp(this->command[2], "&") == 0){
-		cout << "smash error: kill: invalid arguments" << endl;
+		cerr << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
 	SmallShell& s = SmallShell::getInstance();
@@ -1135,7 +1135,7 @@ void KillCommand::execute(){
 		signum = 0;
 	} else {
 		if(atoi(command[1]) == 0){
-			cout << "smash error: kill: invalid arguments" << endl;
+			cerr << "smash error: kill: invalid arguments" << endl;
 			return;
 		}
 		else {
@@ -1144,19 +1144,20 @@ void KillCommand::execute(){
 	}
 	int job_id = atoi(command[2]);
 	if(signum < 0 || signum > 31){
-		cout << "smash error: kill: invalid arguments" << endl;
+		cerr << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
 	JobsList::JobEntry* j_entry=s.getJobs()->getJobById(job_id);
 	if(j_entry == nullptr){
-		cout << "smash error: kill: job-id "<<job_id<<" does not exist" << endl;
+		cerr << "smash error: kill: job-id "<< job_id <<" does not exist" << endl;
 		return;
 	}
 	int j_pid = j_entry->getPid();
-	cout<<"signal number "<<signum<<" was sent to pid "<<j_pid<<endl;
 	if(kill(j_pid,signum) == -1){
 		perror("smash error: kill failed");
+		return;
 	}
+	cout << "signal number "<< signum << " was sent to pid "<< j_pid << endl;
 }
 
 //--------------------------------
@@ -1177,14 +1178,14 @@ ForegroundCommand::~ForegroundCommand(){
 void ForegroundCommand::execute(){
 	FUNC_ENTRY()
 	if(nullptr == this->j){
-		cout<< "smash error: fg: jobs list is empty" << endl;
+		cerr<< "smash error: fg: jobs list is empty" << endl;
 	}
 	if(this->j->getJobs().empty() && this->numOfArgs == 1){
-		cout<< "smash error: fg: jobs list is empty" << endl;
+		cerr<< "smash error: fg: jobs list is empty" << endl;
 		return;
 	}
 	if(this->numOfArgs > 2 && strcmp(this->command[2], "&") != 0) {
-		cout<< "smash error: fg: invalid arguments" <<endl;
+		cerr<< "smash error: fg: invalid arguments" <<endl;
 		return;
 	}
 	int last_job_id = 0;
@@ -1194,7 +1195,7 @@ void ForegroundCommand::execute(){
 		int job_id = atoi(this->command[1]);
 		JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
 		if(j_entry == nullptr){
-			cout << "smash error: fg: job-id "<<job_id<<" does not exist" << endl;
+			cerr << "smash error: fg: job-id "<<job_id<<" does not exist" << endl;
 			return;
 		}
 		pid_t pid = j_entry->getPid();
@@ -1235,7 +1236,7 @@ void ForegroundCommand::execute(){
 		int wstatus = 0;
 		JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
 		if(nullptr == j_entry){
-			cout << "smash error: fg: jobs list is empty" << endl;
+			cerr << "smash error: fg: jobs list is empty" << endl;
 			return;
 		}
 		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
@@ -1292,14 +1293,14 @@ BackgroundCommand::~BackgroundCommand(){
 
 void BackgroundCommand::execute(){
 	if(this->numOfArgs > 2 && strcmp(this->command[2], "&") != 0){
-		cout << "smash error: bg: invalid arguments" <<endl;
+		cerr << "smash error: bg: invalid arguments" <<endl;
 		return;
 	}
 	if(this->numOfArgs == 1 || (this->numOfArgs == 2 && strcmp(this->command[1], "&") == 0)) {
 		int jobId = 0;
 		JobsList::JobEntry* j_entry = this->j->getLastStoppedJob(&jobId);
 		if(nullptr == j_entry){
-			cout << "smash error: bg: there is no stopped jobs to resume" << endl;
+			cerr << "smash error: bg: there is no stopped jobs to resume" << endl;
 			return;
 		}
 		pid_t pid = j_entry->getPid();
@@ -1324,11 +1325,11 @@ void BackgroundCommand::execute(){
 		int jobId = atoi(this->command[1]);
 		JobsList::JobEntry* j_entry = this->j->getJobById(jobId);
 		if(nullptr == j_entry){
-			cout << "smash error: bg: job-id " << jobId << " does not exist" << endl;
+			cerr << "smash error: bg: job-id " << jobId << " does not exist" << endl;
 			return;
 		}
 		if(!(j_entry->getIsStopped())){
-			cout<< "smash error: bg: job-id " << jobId << " is already running in the background" <<endl;
+			cerr << "smash error: bg: job-id " << jobId << " is already running in the background" << endl;
 			return;
 		}
 		pid_t pid = j_entry->getPid();
