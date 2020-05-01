@@ -143,6 +143,7 @@ ExternalCommand::~ExternalCommand(){
 }
 
 void ExternalCommand::execute() {
+	FUNC_ENTRY()
 	SmallShell& smash = SmallShell::getInstance();
 	if(!(this->is_background)) {
 		if(!smash.getIsForked()){
@@ -157,7 +158,9 @@ void ExternalCommand::execute() {
 				}
 			} else if (pid > 0) {
 				smash.setCurrentFgPid(pid);
+				
 				waitpid(pid, nullptr, WUNTRACED);
+
 				smash.setCurrentFgPid(smash.getSmashPid());
 			} else{
 				perror("smash error: fork failed");
@@ -185,16 +188,18 @@ void ExternalCommand::execute() {
 				smash.setCurrentFgPid(getpid());
 				perror("smash error: fork failed");
 			} else {
-				smash.getJobs()->addJob(this,pid);
+				smash.getJobs()->addJob(this,pid); //why is this here?
 			}
 		} else {
 			int result = execv(this->bin_bash, this->external_args);
+	
 			if(result == -1){
 				perror("smash error: execv failed");
 				exit(0);
 			}
 		}
 	}
+	FUNC_EXIT()
 }
 
 //--------------------------------
@@ -392,7 +397,7 @@ void CopyCommand::execute() {
 	SmallShell& smash = SmallShell::getInstance();
 	if(this->is_background){//background
 		pid_t pid = fork();
-		if(pid == 0){
+		if(pid == 0){ 
 			char* sourceAddress = this->cmd_without_bg_sign[1];
 			char* destinationAddress = this->cmd_without_bg_sign[2];
 			char buff[4096];
@@ -442,6 +447,7 @@ void CopyCommand::execute() {
 				kill(getpid(), SIGKILL);
 				return;
 			}
+			cout<<"smash: "<<sourceAddress<<" was copied to "<<destinationAddress<<endl;
 			kill(getpid(),SIGKILL);
 		} else if(pid > 0){
 			smash.getJobs()->addJob(this,pid);
@@ -504,6 +510,7 @@ void CopyCommand::execute() {
 				kill(getpid(), SIGKILL);
 				return;
 			}
+			cout<<"smash: "<<sourceAddress<<" was copied to "<<destinationAddress<<endl;
 			kill(getpid(),SIGKILL);
 		} else if (pid > 0){
 			smash.setCurrentFgPid(pid);
@@ -627,6 +634,7 @@ void PipeCommand::execute(){
 						perror("smash error: fork failed");
 					} else {
 						while(wait(nullptr) != -1);
+						smash.setIsForked(false);
 					}
 				} else {
 					perror("smash error: fork failed");
@@ -659,6 +667,7 @@ void PipeCommand::execute(){
 					smash.setIsForked(false);
 					close(my_pipe[1]);
 					kill(getpid(), SIGKILL);
+					exit(0);
 				} else if(pid1 > 0){
 					//smash.setCurrentFgPid(pid1);
 					//waitpid(pid1, nullptr, WUNTRACED);
@@ -672,6 +681,7 @@ void PipeCommand::execute(){
 						cmd_reads->execute(); 
 						smash.setIsForked(false);
 						close(my_pipe[0]);
+						exit(0);
 					} else if (pid2 == -1){
 						perror("smash error: fork failed");
 					} else {
@@ -689,6 +699,7 @@ void PipeCommand::execute(){
 				smash.setCurrentFgPid(getpid());
 				pid_t pid1 = fork();
 				if(pid1 == 0){
+					cout<<"Inside first fork"<<endl;
 					close(1);
 					close(my_pipe[0]);
 					dup2(my_pipe[1],1);
@@ -702,18 +713,23 @@ void PipeCommand::execute(){
 					if(pid2 == 0){
 						//smash.setCurrentFgPid(pid1);
 						//waitpid(pid1, nullptr, WUNTRACED);
+						cout<<"Inside second fork"<<endl;
 						close(0);
 						close(my_pipe[1]);
 						smash.setCurrentFgPid(getpid());
 						dup2(my_pipe[0],0);
 						smash.setIsForked(true);
+						cout<<"b4 execute"<<endl;
 						cmd_reads->execute(); 
+						cout<<"after execute"<<endl;
 						smash.setIsForked(false);
 						close(my_pipe[0]);
+						kill(getpid(),SIGKILL);
 					} else if (pid2 == -1){
 						perror("smash error: fork failed");
 					} else {
 						while(wait(nullptr) != -1);
+						cout<<"after wait"<<endl;
 					}
 				} else {
 					smash.setCurrentFgPid(getpid());
@@ -1000,7 +1016,15 @@ void JobsList::removeFinishedJobs(){
 			continue;
 		} else {
 			if(res == -1){
+				//---this is a cosmetic fix for foreground command problem---
+				JobEntry* temp = *j;
+				this->jobs.erase(j);
+				delete temp;
+				j = this->jobs.begin();
+				continue;
+				//---
 				perror("smash error: waitpid failed");
+			
 			}
 		}
 		j++;
@@ -1112,6 +1136,7 @@ ForegroundCommand::~ForegroundCommand(){
 }
 
 void ForegroundCommand::execute(){
+	FUNC_ENTRY()
 	if(nullptr == this->j){
 		cout<< "smash error: fg: jobs list is empty" << endl;
 	}
@@ -1170,7 +1195,7 @@ void ForegroundCommand::execute(){
 			}
 		}
 		
-		// this->j->removeJobById(job_id);
+		this->j->removeFinishedJobs(); 
 	} else if (this->numOfArgs == 1) {
 		int wstatus = 0;
 		JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
@@ -1209,8 +1234,9 @@ void ForegroundCommand::execute(){
 				return;
 			}
 		}
-		// this->j->removeJobById(last_job_id);
+		 this->j->removeFinishedJobs(); 
 	}
+	FUNC_EXIT()
 }
 
 //--------------------------------
