@@ -1386,6 +1386,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	
 	_removeBackgroundSign(temp[0]);
 	string str=_trim(string(temp[0]));
+	temp[0]=malloc(sizeof(str.c_str()) +1);
 	strcpy(temp[0], str.c_str());
 	
 	if (strcmp(temp[0], "chprompt") == 0) {
