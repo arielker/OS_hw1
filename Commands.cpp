@@ -208,6 +208,7 @@ void ExternalCommand::execute() {
 
 RedirectionCommand::RedirectionCommand(const char* cmd_line): 
 Command(cmd_line){
+	FUNC_ENTRY()
 	this->cmd_line_tmp = string(cmd_line);
 	this->red_sign_len = 0;
 	this->red_index = 0;
@@ -230,9 +231,11 @@ Command(cmd_line){
 		file_name = this->cmd_line_tmp.substr(red_index + red_sign_len, cmd_line_tmp.size() - red_index - red_sign_len);
 		file_name = _trim(file_name);
 	}
+	FUNC_EXIT()
 }
 
 void RedirectionCommand::execute(){
+	FUNC_ENTRY()
 	SmallShell& smash = SmallShell::getInstance();
 	string cmd_line_until_sign = this->cmd_line_tmp.substr(0, red_index);
 	cmd_line_until_sign = _trim(cmd_line_until_sign);
@@ -341,6 +344,7 @@ void RedirectionCommand::execute(){
 				int open_res = open(file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
 				if (open_res == -1){
 					perror("smash error: open failed");
+					exit(0);
 					return;
 				}
 				smash.setIsForked(true);
@@ -352,6 +356,7 @@ void RedirectionCommand::execute(){
 				}
 				delete cmd;
 				kill(getpid(),SIGKILL);
+				exit(0);
 			} else if (pid > 0) {
 				smash.setCurrentFgPid(pid);
 				smash.setCurrentFgGid(pid);
@@ -367,6 +372,7 @@ void RedirectionCommand::execute(){
 			}
 		}
 	}
+	FUNC_EXIT()
 }
 
 //--------------------------------
@@ -563,9 +569,9 @@ PipeCommand::~PipeCommand(){
 
 void PipeCommand::execute(){
 	SmallShell& smash = SmallShell::getInstance();
-	Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
-	Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 	if(this->is_background){ //in background
+		Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
+		Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 		pid_t pid = fork();
 		if(pid == 0){
 			setpgrp();
@@ -649,6 +655,8 @@ void PipeCommand::execute(){
 			smash.getJobs()->addJob(this, pid, false, pid);
 		}
 	} else { //not in background
+		Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
+		Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 		pid_t pid = fork();
 		if(pid == 0){
 			setpgrp();
@@ -756,7 +764,9 @@ void PipeCommand::execute(){
 
 ChangePromptCommand::ChangePromptCommand(const char* cmd_line) :
 BuiltInCommand(cmd_line) {
+	FUNC_ENTRY()
 	size_t new_size = 0;
+	memset(this->prompt, 0, 80);
 	if(numOfArgs > 1) {
 		if(strcmp(this->command[1], "&") == 0){
 			new_size = strlen("smash");
@@ -775,18 +785,23 @@ BuiltInCommand(cmd_line) {
 		memcpy(this->prompt, this->smash, new_size);
 		this->n = 1;
 	}
+	SmallShell& s = SmallShell::getInstance();
+	s.setPrompt(this->prompt);
+	FUNC_EXIT()
 }
 
 void ChangePromptCommand::execute(){
-	SmallShell& s = SmallShell::getInstance();
-	s.setPrompt(this->prompt);
+	FUNC_ENTRY()
+	/*SmallShell& s = SmallShell::getInstance();
+	s.setPrompt(this->prompt);*/
+	FUNC_EXIT()
+	return;
 }
 
 ChangePromptCommand::~ChangePromptCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
 	}
-	free(this->prompt);
 }
 
 //--------------------------------
@@ -1487,9 +1502,13 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 }
 
 void SmallShell::setPrompt(char* new_prompt){
-	char promptempty[80] = {0};
+	FUNC_ENTRY()
+	/*char promptempty[80] = {0};
 	memcpy(this->prompt, promptempty, 80);
-	memcpy(this->prompt, new_prompt, strlen(new_prompt));
+	memcpy(this->prompt, new_prompt, strlen(new_prompt));*/
+	memset(prompt, 0, 80);
+	strcpy(prompt, new_prompt);
+	FUNC_EXIT()
 }
 
 char* SmallShell::getPrompt(){
