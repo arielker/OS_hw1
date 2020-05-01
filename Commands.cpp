@@ -1148,10 +1148,7 @@ void ForegroundCommand::execute(){
 		cout<< "smash error: fg: invalid arguments" <<endl;
 		return;
 	}
-	if(this->numOfArgs == 2 && atoi(this->command[1]) <= 0) {
-		cout<< "smash error: fg: invalid arguments" <<endl;
-		return;
-	}
+	
 	int last_job_id = 0;
 	SmallShell& s = SmallShell::getInstance();
 	if(this->numOfArgs == 2){
@@ -1259,10 +1256,7 @@ void BackgroundCommand::execute(){
 		cout << "smash error: bg: invalid arguments" <<endl;
 		return;
 	}
-	if(this->numOfArgs == 2 && atoi(this->command[1]) <= 0){
-		cout << "smash error: bg: invalid arguments" <<endl;
-		return;
-	}
+	
 	if(this->numOfArgs == 1) {
 		int jobId = 0;
 		JobsList::JobEntry* j_entry = this->j->getLastStoppedJob(&jobId);
