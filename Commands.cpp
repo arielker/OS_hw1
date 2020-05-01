@@ -1378,6 +1378,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 		this->setSpecialCurrentCommand(c);
 		return c;
 	}
+	
+	_removeBackgroundSign(temp[0]);
+	string str=_trim(string(temp[0]));
+	strcpy(temp[0], str.c_str());
+	
 	if (strcmp(temp[0], "chprompt") == 0) {
 		destroyTemp(temp, n);
 		ChangePromptCommand* c = new ChangePromptCommand(cmd_line);
