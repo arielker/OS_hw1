@@ -701,7 +701,6 @@ void PipeCommand::execute(){
 				smash.setCurrentFgPid(getpid());
 				pid_t pid1 = fork();
 				if(pid1 == 0){
-					cout<<"Inside first fork"<<endl;
 					close(1);
 					close(my_pipe[0]);
 					dup2(my_pipe[1],1);
@@ -713,7 +712,6 @@ void PipeCommand::execute(){
 				} else if(pid1 > 0){
 					pid_t pid2 = fork();
 					if(pid2 == 0){
-						cout<<"Inside second fork"<<endl;
 						close(0);
 						close(my_pipe[1]);
 						smash.setCurrentFgPid(getpid());
@@ -760,9 +758,18 @@ ChangePromptCommand::ChangePromptCommand(const char* cmd_line) :
 BuiltInCommand(cmd_line) {
 	size_t new_size = 0;
 	if(numOfArgs > 1) {
-		new_size = strlen(this->command[1]);
-		memcpy(this->prompt, command[1], new_size);
-		this->n = 2;
+		if(strcmp(this->command[1], "&") == 0){
+			new_size = strlen("smash");
+			memcpy(this->prompt, this->smash, new_size);
+			this->n = 1;
+		} else { 
+			_removeBackgroundSign(this->command[1]);
+			string t1 = string(this->command[1]);
+			t1 = _trim(t1);
+			new_size = strlen(t1.c_str());
+			memcpy(this->prompt, t1.c_str(), new_size);
+			this->n = 2;
+		}
 	} else if (numOfArgs == 1) {
 		new_size = strlen("smash");
 		memcpy(this->prompt, this->smash, new_size);
@@ -831,33 +838,42 @@ void GetCurrDirCommand::execute(){
 
 ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd)
 : BuiltInCommand(cmd_line) {
-		if(plastPwd != nullptr && *plastPwd != nullptr){
-			this->lastPwd = (char*)(malloc(strlen(*plastPwd) + 1));
-			memcpy(this->lastPwd, *plastPwd, strlen(*plastPwd) + 1);
-		} else {
-			this->lastPwd = nullptr;
-		}
+	if(plastPwd != nullptr && *plastPwd != nullptr){
+		this->lastPwd = (char*)(malloc(strlen(*plastPwd) + 1));
+		memcpy(this->lastPwd, *plastPwd, strlen(*plastPwd) + 1);
+	} else {
+		this->lastPwd = nullptr;
+	}
 }
 
 void ChangeDirCommand::execute(){
 	SmallShell& s = SmallShell::getInstance();
 	char temp [COMMAND_ARGS_MAX_LENGTH] = {0};
 	getcwd(temp, COMMAND_ARGS_MAX_LENGTH);
-	if(numOfArgs > 2){
+	if(numOfArgs > 2 && strcmp(this->command[2], "&") != 0){
 		cout << "smash error: cd: too many arguments" << endl;
 		return;
 	}
-	if(strcmp(command[1], "-") == 0) {
+	if(strcmp(command[1], "&") == 0){
+		return;
+	}
+	_removeBackgroundSign(this->command[1]);
+	string t1 = string(this->command[1]);
+	t1 =_trim(t1); 
+	if(strcmp(t1.c_str(), "-") == 0) {
 		if(this->lastPwd == nullptr){
 			cout << "smash error: cd: OLDPWD not set" << endl;
 			return;
 		} else {
-			chdir(this->lastPwd);
+			if(chdir(this->lastPwd) == -1){
+				perror("smash error: chdir failed");
+				return;
+			}
 			s.setPlastPwd(temp);
 		}
 		return;
 	}
-	int result = chdir(command[1]);
+	int result = chdir(t1.c_str());
 	if(result == -1){
 		perror("smash error: chdir failed");
 	} else {
@@ -1002,7 +1018,7 @@ void JobsList::killAllJobs(){
 
 void JobsList::removeFinishedJobs(){
 	FUNC_ENTRY()
-	int i = 0, wstatus = 0, res = 0;
+	int wstatus = 0, res = 0;
 	auto j = this->jobs.begin();
 	while(j != this->jobs.end()){
 		pid_t pid = (*j)->getPid();
@@ -1083,13 +1099,22 @@ KillCommand::~KillCommand(){
 	}
 }
 
-
 void KillCommand::execute(){
-	SmallShell& s = SmallShell::getInstance();
-	if(numOfArgs != 3){
+	if(this->numOfArgs != 3){
+		bool flag = false;
+		if(numOfArgs == 4 && strcmp(this->command[3], "&") == 0){
+			flag = true;
+		}
+		if(!flag) {	
+			cout << "smash error: kill: invalid arguments" << endl;
+			return;
+		}
+	}
+	if(this->numOfArgs == 3 && strcmp(this->command[2], "&") == 0){
 		cout << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
+	SmallShell& s = SmallShell::getInstance();
 	int signum;
 	if(strcmp(command[1], "-0") == 0){
 		signum = 0;
@@ -1143,14 +1168,13 @@ void ForegroundCommand::execute(){
 		cout<< "smash error: fg: jobs list is empty" << endl;
 		return;
 	}
-	if(this->numOfArgs > 2) {
+	if(this->numOfArgs > 2 && strcmp(this->command[2], "&") != 0) {
 		cout<< "smash error: fg: invalid arguments" <<endl;
 		return;
 	}
-	
 	int last_job_id = 0;
 	SmallShell& s = SmallShell::getInstance();
-	if(this->numOfArgs == 2){
+	if(this->numOfArgs == 2 && strcmp(this->command[1], "&") != 0){
 		int wstatus = 0;
 		int job_id = atoi(this->command[1]);
 		JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
@@ -1192,11 +1216,12 @@ void ForegroundCommand::execute(){
 		}
 		
 		this->j->removeFinishedJobs(); 
-	} else if (this->numOfArgs == 1) {
+	} else {
 		int wstatus = 0;
 		JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
 		if(nullptr == j_entry){
 			cout << "smash error: fg: jobs list is empty" << endl;
+			return;
 		}
 		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
 		cout << " : " << (j_entry->getPid()) << endl;
@@ -1251,12 +1276,11 @@ BackgroundCommand::~BackgroundCommand(){
 }
 
 void BackgroundCommand::execute(){
-	if(this->numOfArgs > 2){
+	if(this->numOfArgs > 2 && strcmp(this->command[2], "&") != 0){
 		cout << "smash error: bg: invalid arguments" <<endl;
 		return;
 	}
-	
-	if(this->numOfArgs == 1) {
+	if(this->numOfArgs == 1 || (this->numOfArgs == 2 && strcmp(this->command[1], "&") == 0)) {
 		int jobId = 0;
 		JobsList::JobEntry* j_entry = this->j->getLastStoppedJob(&jobId);
 		if(nullptr == j_entry){
@@ -1409,10 +1433,6 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	if(strcmp(temp[0], "cd") == 0){
 		destroyTemp(temp, n);
 		if(n == 1){
-			return nullptr;
-		}
-		cout << temp[1] << endl;
-		if (n == 2 && strcmp(temp[1], "&") == 0){
 			return nullptr;
 		}
 		ChangeDirCommand* c = new ChangeDirCommand(cmd_line, &(this->plastPwd));
