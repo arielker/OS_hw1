@@ -1,2 +1,6 @@
 *.txt
 Makefile
+*.o
+smash
+Commands
+signals
