@@ -13,12 +13,23 @@ void ctrlCHandler(int sig_num) {
 	cout<<"smash: got ctrl-C"<<endl;
 	pid_t p = smash.getCurrentFgPid();
 	if(p != smash.getSmashPid()){
-		if(kill(p, SIGKILL) == -1){
-			perror("smash error: kill failed");
+		if(smash.getCurrentFgGid() != 0){
+			if(killpg(smash.getCurrentFgGid(), SIGKILL) == -1){
+				perror("smash error: kill failed");
+				return;
+			} else {
+				cout << "smash: process " << p << " was killed" << endl;
+				smash.setCurrentFgPid(smash.getSmashPid());
+				smash.setCurrentFgGid(0);
+			}
 		} else {
-			cout << "smash: process " << p << " was killed" << endl;
-			smash.setCurrentFgPid(smash.getSmashPid());
-			smash.setCurrentFgGid(0);
+			if(kill(p, SIGKILL) == -1){
+				perror("smash error: kill failed");
+			} else {
+				cout << "smash: process " << p << " was killed" << endl;
+				smash.setCurrentFgPid(smash.getSmashPid());
+				smash.setCurrentFgGid(0);
+			}
 		}
 	}
 }
@@ -28,16 +39,14 @@ void ctrlZHandler(int sig_num) {
 	cout << "smash: got ctrl-Z" << endl;
 	pid_t p = smash.getCurrentFgPid();
 	if(p != smash.getSmashPid()){
-		
 		if(smash.getCurrentFgGid() != 0){
 			if(killpg(smash.getCurrentFgGid(), SIGSTOP) == -1) {
 				perror("smash error: kill failed");
 				return;
-			}
-			else {
+			} else {
 				cout << "smash: process " << p << " was stopped" << endl;
 				for(auto j : smash.getJobs()->getJobs()){
-					if(p==(*j).getPid()){
+					if(p == (*j).getPid()){
 						(*j).setIsStopped(true);
 						smash.setCurrentFgPid(smash.getSmashPid());
 						smash.setCurrentFgGid(0);
@@ -54,7 +63,7 @@ void ctrlZHandler(int sig_num) {
 			} else {
 				cout << "smash: process " << p << " was stopped" << endl;
 				for(auto j : smash.getJobs()->getJobs()){
-					if(p==(*j).getPid()){
+					if(p == (*j).getPid()){
 						(*j).setIsStopped(true);
 						smash.setCurrentFgPid(smash.getSmashPid());
 						smash.setCurrentFgGid(0);

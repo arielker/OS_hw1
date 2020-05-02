@@ -92,7 +92,7 @@ Command::Command(const char* cmd_line) : is_background(false) {
 Command::~Command(){
 	/*for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
-	}*///THIS CAUSES SEG FAULTS
+	}*/
 }
 
 //--------------------------------
@@ -195,7 +195,6 @@ void ExternalCommand::execute() {
 			}
 		} else {
 			int result = execv(this->bin_bash, this->external_args);
-	
 			if(result == -1){
 				perror("smash error: execv failed");
 				exit(0);
@@ -418,21 +417,18 @@ void CopyCommand::execute() {
 				kill(getpid(), SIGKILL);
 				return;
 			}
-			
 			char a[4096];
 			realpath(sourceAddress,a);
 			char b[4096];
 			realpath(destinationAddress,b);
-				
-			if(a!=nullptr && b!=nullptr){
-				if(strcmp(a,b)==0){
+			if(a != nullptr && b != nullptr){
+				if(strcmp(a,b) == 0){
+					close(file[0]);
 					cout<<"smash: "<<sourceAddress<<" was copied to "<<destinationAddress<<endl;
 					kill(getpid(),SIGKILL);
 					return;
-				}		
+				}
 			}
-			
-			
 			file[1] = open(destinationAddress, O_WRONLY | O_CREAT | O_TRUNC,0666);
 			if(file[1] == -1){
 				close(file[0]);
@@ -487,33 +483,24 @@ void CopyCommand::execute() {
 			char buff[4096];
 			ssize_t count;
 			int file[2];
-			
-			
-				
-			
-			
-			
 			file[0] = open(sourceAddress,O_RDONLY);
 			if(file[0] == -1){
 				perror("smash error: open failed");
 				kill(getpid(), SIGKILL);
 				return;
 			}
-			
 			char a[4096];
 			realpath(sourceAddress,a);
 			char b[4096];
 			realpath(destinationAddress,b);
-				
-			if(a!=nullptr && b!=nullptr){
+			if(a != nullptr && b != nullptr){
 				if(strcmp(a,b)==0){
+					close(file[0]);
 					cout<<"smash: "<<sourceAddress<<" was copied to "<<destinationAddress<<endl;
 					kill(getpid(),SIGKILL);
 					return;
 				}		
 			}
-				
-			
 			file[1] = open(destinationAddress, O_WRONLY | O_CREAT | O_TRUNC,0666);
 			if(file[1] == -1){
 				if(close(file[0]) == -1){

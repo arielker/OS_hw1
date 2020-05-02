@@ -48,7 +48,7 @@ class Command {
 class BuiltInCommand : public Command {
  public:
   BuiltInCommand(const char* cmd_line);
-  virtual ~BuiltInCommand();
+  virtual ~BuiltInCommand() override;
 };
 
 class ExternalCommand : public Command {
@@ -57,7 +57,7 @@ class ExternalCommand : public Command {
 	char* external_args[4];
  public:
   ExternalCommand(const char* cmd_line);
-  virtual ~ExternalCommand(); //TODO: implement
+  virtual ~ExternalCommand() override; //TODO: implement
   void execute() override;
 };
 
@@ -73,7 +73,7 @@ class PipeCommand : public Command {
   // TODO: Add your data members
  public:
   PipeCommand(const char* cmd_line);
-  virtual ~PipeCommand();
+  virtual ~PipeCommand() override;
   void execute() override;
 };
 
@@ -88,7 +88,7 @@ class RedirectionCommand : public Command {
 	string file_name;
  public:
   explicit RedirectionCommand(const char* cmd_line);
-  virtual ~RedirectionCommand(){
+  virtual ~RedirectionCommand() override {
 	  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
 		  free(this->command[i]);
 	  }
@@ -111,7 +111,7 @@ class GetCurrDirCommand : public BuiltInCommand {
 	int n;
  public:
   GetCurrDirCommand(const char* cmd_line);
-  virtual ~GetCurrDirCommand();
+  virtual ~GetCurrDirCommand() override;
   void execute() override;
 };
 
@@ -120,7 +120,7 @@ class ShowPidCommand : public BuiltInCommand {
 	int n;
  public:
   ShowPidCommand(const char* cmd_line);
-  virtual ~ShowPidCommand();
+  virtual ~ShowPidCommand() override;
   void execute() override;
 };
 
@@ -129,7 +129,7 @@ class QuitCommand : public BuiltInCommand {
 	JobsList* j;
 	public:
 		QuitCommand(const char* cmd_line, JobsList* jobs);
-		virtual ~QuitCommand(){
+		virtual ~QuitCommand() override{
 			//delete j;
 			for (int i = 0; i < numOfArgs; i++){
 				free(command[i]);
@@ -155,23 +155,16 @@ class JobsList {
 	 public:
 	  JobEntry(Command* c,char* j, pid_t p, bool iS, time_t t, int n, pid_t g, int jid):
 	  pid(p), isStopped(iS), time(t), numOfArgs(n), grp_id(g), job_id(jid) {
-		  cmd = c;
-		 
+			cmd = c;
 			this->job = (char*)(malloc (strlen(j) + 1));
 			memcpy(this->job, j,strlen(j) + 1);
-		  
 	  }
-	  
-	  ~JobEntry(){
-		 
-			  free(this->job);
-		  
+	  ~JobEntry(){ 
+		  free(this->job);
 		  if(nullptr != this->cmd){
 			delete this->cmd;
 		  }
 	  }
-	  
-	 
 	  Command* getCmd(){
 		  return this->cmd;
 	  }
@@ -246,7 +239,7 @@ class JobsCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~JobsCommand();
+  virtual ~JobsCommand() override;
   void execute() override;
 };
 
@@ -254,7 +247,7 @@ class KillCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   KillCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~KillCommand();
+  virtual ~KillCommand() override;
   void execute() override;
 };
 
@@ -263,7 +256,7 @@ class ForegroundCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   ForegroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~ForegroundCommand();
+  virtual ~ForegroundCommand() override;
   void execute() override;
 };
 
@@ -272,7 +265,7 @@ class BackgroundCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~BackgroundCommand();
+  virtual ~BackgroundCommand() override;
   void execute() override;
 };
 
@@ -282,7 +275,7 @@ class CopyCommand : public Command {
 	int n;
  public:
   CopyCommand(const char* cmd_line);
-  virtual ~CopyCommand();
+  virtual ~CopyCommand() override;
   void execute() override;
 };
 

@@ -1,0 +1,62 @@
+smash> my_sleep
+random1.txt
+ransmash> look here
+smash> /bin/bash: not_real_command: command not found
+smash> smash> smash> smash: got ctrl-C
+smash: process 57418 was killed
+smash> smash> smash: got ctrl-C
+smash: process 57424 was killed
+smash> smash> smash> [1] sleep 2 | sleep 4 & : 57430 0 secs
+smash> [1] sleep 2 | sleep 4 & : 57430 1 secs
+smash> [1] sleep 2 | sleep 4 & : 57430 3 secs
+smash> smash> smash> [1] sleep 4 | sleep 2 & : 57433 1 secs
+smash> [1] sleep 4 | sleep 2 & : 57433 2 secs
+smash> [1] sleep 4 | sleep 2 & : 57433 4 secs
+smash> smash> smash> my_sleep
+random1.txt
+random2.txt
+sub1
+sub2
+sub3
+smash> 
+smash> smash: got ctrl-Z
+
+smash: got ctrl-C
+smash: process 57446 was killed
+smash> smash> 
+[1] ./my_sleep 8 | echo & : 57449 0 secs
+smash> smash> smash> 
+[1] ./my_sleep 8 | echo & : 57455 0 secs
+smash> smash: got ctrl-C
+[1] ./my_sleep 8 | echo & : 57455 5 secs
+smash> signal number 9 was sent to pid 57455
+smash> smash> smash pid issmash> realloc(): invalid next size
+smash> smash> smash> signal number 9 was sent to pid 57468
+smash> smash error: kill: job-id 2 does not exist
+smash> smash error: kill: job-id 3 does not exist
+smash> smash error: kill: job-id 4 does not exist
+smash> smash error: kill: job-id 5 does not exist
+smash> smash error: kill: job-id 6 does not exist
+smash> smash> smash error: kill: job-id 1 does not exist
+
+smash> [1] sleep 10 & : 57469 0 secs
+smash> smash> smash error: kill: job-id 1 does not exist
+smash> [1] sleep 10 & : 57469 1 secs
+[2] sleep 10 & : 57473 0 secs
+smash> smash> 
+./my_sleep 8 | echo & : 57477
+smash: got ctrl-Z
+smash: process 57477 was stopped
+smash> ./my_sleep 8 | echo & : 57477
+smash: got ctrl-C
+smash: process 57477 was killed
+smash> [1] sleep 10 & : 57469 6 secs
+[2] sleep 10 & : 57473 5 secs
+smash> 
+smash: got ctrl-Z
+smash: process 57480 was stopped
+smash> ./my_sleep 4 | echo : 57480
+smash> smash> r directory
+smash> r directory
+smash> PWD not set
+smash> 
