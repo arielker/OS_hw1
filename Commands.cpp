@@ -138,11 +138,11 @@ ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line){
 
 ExternalCommand::~ExternalCommand(){
 	for (int i = 0; i < this->numOfArgs; i++) {
-		//free(this->command[i]);
+		free(this->command[i]);
 	}
-	//free(external_args[0]);
-	//free(external_args[1]);
-	//free(external_args[2]);
+	free(external_args[0]);
+	free(external_args[1]);
+	free(external_args[2]);
 }
 
 void ExternalCommand::execute() {
@@ -394,11 +394,11 @@ CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line), n(0){
 CopyCommand::~CopyCommand(){
 	if(this->is_background){
 		for (int i = 0; i < this->n; i++) {
-			//free(cmd_without_bg_sign[i]);
+			free(cmd_without_bg_sign[i]);
 		}
 	}
 	for (int i = 0; i < this->numOfArgs; i++){
-			//free(command[i]);
+			free(command[i]);
 	}
 }
 
@@ -565,7 +565,7 @@ PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line){
 
 PipeCommand::~PipeCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(this->command[i]);
+		free(this->command[i]);
 	}
 }
 
@@ -802,7 +802,7 @@ void ChangePromptCommand::execute(){
 
 ChangePromptCommand::~ChangePromptCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(this->command[i]);
+		free(this->command[i]);
 	}
 }
 
@@ -817,7 +817,7 @@ BuiltInCommand(cmd_line), n(1){
 
 ShowPidCommand::~ShowPidCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(this->command[i]);
+		free(this->command[i]);
 	}
 }
 
@@ -835,7 +835,7 @@ BuiltInCommand(cmd_line) {
 
 GetCurrDirCommand::~GetCurrDirCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(command[i]);
+		free(command[i]);
 	}
 }
 
@@ -846,7 +846,7 @@ void GetCurrDirCommand::execute(){
 		return;
 	}
 	cout << dirpath <<endl;
-	//free(dirpath);
+	free(dirpath);
 }
 
 //--------------------------------
@@ -899,9 +899,9 @@ void ChangeDirCommand::execute(){
 }
 
 ChangeDirCommand::~ChangeDirCommand(){
-	//free(this->lastPwd);
+	free(this->lastPwd);
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(this->command[i]);
+		free(this->command[i]);
 	}
 }
 
@@ -1071,7 +1071,7 @@ BuiltInCommand(cmd_line){
 
 JobsCommand::~JobsCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(command[i]);
+		free(command[i]);
 	}
 }
 
@@ -1108,7 +1108,7 @@ BuiltInCommand(cmd_line){
 
 KillCommand::~KillCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(command[i]);
+		free(command[i]);
 	}
 }
 
@@ -1169,7 +1169,7 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs)
 
 ForegroundCommand::~ForegroundCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		//free(command[i]);
+		free(command[i]);
 	}
 }
 
@@ -1285,7 +1285,7 @@ BuiltInCommand(cmd_line){
 
 BackgroundCommand::~BackgroundCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-	//	free(command[i]);
+		free(command[i]);
 	}
 }
 
@@ -1384,7 +1384,7 @@ SmallShell::SmallShell() {
 
 SmallShell::~SmallShell() {
 	//free(this->plastPwd);
-	//delete this->jobs;
+	delete this->jobs;
 // TODO: add your implementation
 }
 
@@ -1519,7 +1519,7 @@ char* SmallShell::getlastPwd(){
 }
 
 void SmallShell::setPlastPwd(char *pwd_new){
-	//free(this->plastPwd);
+	free(this->plastPwd);
 	this->plastPwd = (char*)(malloc((strlen(pwd_new) + 1)));
 	memcpy(this->plastPwd, pwd_new, strlen(pwd_new) + 1);
 }
