@@ -23,6 +23,7 @@ using namespace std;
 class Command {
  protected:
 	bool is_background;
+	char* cmd_line;
 	char* command [COMMAND_MAX_ARGS];
 	int numOfArgs;
 // TODO: Add your data members
@@ -32,6 +33,9 @@ class Command {
   virtual void execute() = 0;
   char** getCommand(){
 	  return this->command;
+  }
+  char* getCommandLine(){
+	  return this->cmd_line;
   }
   int getNumOfArgs(){
 	  return this->numOfArgs;
@@ -141,7 +145,7 @@ class JobsList {
  //----------- 
   class JobEntry {
 	  Command* cmd = nullptr;
-	  char* job[COMMAND_MAX_ARGS];
+	  char* job;
 	  pid_t pid;
 	  bool isStopped;
 	  time_t time;
@@ -149,40 +153,29 @@ class JobsList {
 	  pid_t grp_id;
 	  int job_id;
 	 public:
-	  JobEntry(Command* c,char** j, pid_t p, bool iS, time_t t, int n, pid_t g, int jid):
+	  JobEntry(Command* c,char* j, pid_t p, bool iS, time_t t, int n, pid_t g, int jid):
 	  pid(p), isStopped(iS), time(t), numOfArgs(n), grp_id(g), job_id(jid) {
 		  cmd = c;
-		  for (int i = 0; i < n; i++) {
-			this->job[i] = (char*)(malloc (strlen(j[i]) + 1));
-			memcpy(this->job[i], j[i], strlen(j[i]) + 1);
-		  }
+		 
+			this->job = (char*)(malloc (strlen(j) + 1));
+			memcpy(this->job, j,strlen(j) + 1);
+		  
 	  }
 	  
 	  ~JobEntry(){
-		  for (int i = 0; i < numOfArgs; i++) {
-			  free(this->job[i]);
-		  }
+		 
+			  free(this->job);
+		  
 		  if(nullptr != this->cmd){
 			delete this->cmd;
 		  }
 	  }
 	  
-	  void printArgs(char* a[COMMAND_MAX_ARGS], int n){
-		  for (int i = 0; i < n; i++) {
-			  cout << " " << string(a[i]);
-		  }
-	  }
-	  
-	  void printArgsWithoutFirstSpace(char* a[COMMAND_MAX_ARGS], int n){
-		  cout << string(a[0]);
-		  for (int i = 1; i < n; i++) {
-			  cout << " " << string(a[i]);
-		  }
-	  }
+	 
 	  Command* getCmd(){
 		  return this->cmd;
 	  }
-	  char** getJob(){
+	  char* getJob(){
 		  return this->job;
 	  }
 	  

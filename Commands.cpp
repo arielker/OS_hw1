@@ -83,6 +83,9 @@ static void destroyTemp (char** a, int n);
 //--------------------------------
 
 Command::Command(const char* cmd_line) : is_background(false) {
+	this->cmd_line=(char*) malloc(sizeof(cmd_line)+1);
+	strcpy(this->cmd_line,cmd_line);
+	
 	this->numOfArgs = _parseCommandLine(cmd_line, this->command);
 }
 
@@ -100,7 +103,7 @@ BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line){}
 
 BuiltInCommand::~BuiltInCommand(){
 	for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
-		free(this->command[i]);
+		//free(this->command[i]);
 	}
 }
 
@@ -135,11 +138,11 @@ ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line){
 
 ExternalCommand::~ExternalCommand(){
 	for (int i = 0; i < this->numOfArgs; i++) {
-		free(this->command[i]);
+		//free(this->command[i]);
 	}
-	free(external_args[0]);
-	free(external_args[1]);
-	free(external_args[2]);
+	//free(external_args[0]);
+	//free(external_args[1]);
+	//free(external_args[2]);
 }
 
 void ExternalCommand::execute() {
@@ -391,11 +394,11 @@ CopyCommand::CopyCommand(const char* cmd_line) : Command(cmd_line), n(0){
 CopyCommand::~CopyCommand(){
 	if(this->is_background){
 		for (int i = 0; i < this->n; i++) {
-			free(cmd_without_bg_sign[i]);
+			//free(cmd_without_bg_sign[i]);
 		}
 	}
 	for (int i = 0; i < this->numOfArgs; i++){
-			free(command[i]);
+			//free(command[i]);
 	}
 }
 
@@ -562,7 +565,7 @@ PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line){
 
 PipeCommand::~PipeCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
+		//free(this->command[i]);
 	}
 }
 
@@ -799,7 +802,7 @@ void ChangePromptCommand::execute(){
 
 ChangePromptCommand::~ChangePromptCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
+		//free(this->command[i]);
 	}
 }
 
@@ -814,7 +817,7 @@ BuiltInCommand(cmd_line), n(1){
 
 ShowPidCommand::~ShowPidCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
+		//free(this->command[i]);
 	}
 }
 
@@ -832,7 +835,7 @@ BuiltInCommand(cmd_line) {
 
 GetCurrDirCommand::~GetCurrDirCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
+		//free(command[i]);
 	}
 }
 
@@ -843,7 +846,7 @@ void GetCurrDirCommand::execute(){
 		return;
 	}
 	cout << dirpath <<endl;
-	free(dirpath);
+	//free(dirpath);
 }
 
 //--------------------------------
@@ -896,9 +899,9 @@ void ChangeDirCommand::execute(){
 }
 
 ChangeDirCommand::~ChangeDirCommand(){
-	free(this->lastPwd);
+	//free(this->lastPwd);
 	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
+		//free(this->command[i]);
 	}
 }
 
@@ -930,7 +933,7 @@ void JobsList::addJob(Command* cmd,pid_t pid, bool isStopped, pid_t g){
 			max = j->getJobId();
 		}
 	}
-	JobEntry* j = new JobEntry(cmd,cmd->getCommand(), p, isStopped, t, cmd->getNumOfArgs(), g, max + 1);
+	JobEntry* j = new JobEntry(cmd,cmd->getCommandLine(), p, isStopped, t, cmd->getNumOfArgs(), g, max + 1);
 	(this->jobs).push_back(j); // insert at max + 1 ?
 	FUNC_EXIT()
 }
@@ -942,17 +945,15 @@ void JobsList::printJobsList(){
 			time_t t;
 			time(&t);
 			time_t elapsed = difftime(t, j->getTime());
-			cout<< "[" << j->getJobId() << "]";
-			j->printArgs(j->getJob(), j->getNumOfArgs());
-			cout << " : " << j->getPid() << " "
+			cout<< "[" << j->getJobId() << "] "<<j->getJob()
+			<< " : " << j->getPid() << " "
 			<< elapsed << " secs (stopped)" << endl;
 		} else {
 			time_t t;
 			time(&t);
 			time_t elapsed = difftime(t, j->getTime());
-			cout << "[" << j->getJobId() << "]";
-			j->printArgs(j->getJob(), j->getNumOfArgs());
-			cout << " : " << j->getPid() << " "
+			cout<< "[" << j->getJobId() << "] "<<j->getJob()
+			<< " : " << j->getPid() << " "
 			<< elapsed << " secs" << endl;
 		}
 	}
@@ -960,7 +961,7 @@ void JobsList::printJobsList(){
 
  JobsList::JobEntry* JobsList::getJobById(int jobId){
 	this->removeFinishedJobs();
-	if(((int)(this->jobs).size()) < jobId || jobId < 0){
+	if(jobId < 0){
 		 return nullptr;
 	}
 	for(JobEntry* j : this->jobs){
@@ -1023,9 +1024,7 @@ void JobsList::killAllJobs(){
 	cout<<"smash: sending SIGKILL signal to "<<numOfJobs<<" jobs:"<<endl;
 	for (vector<JobEntry*>::iterator it = jobs.begin() ; it != jobs.end(); ++it){
 		int pid= (*it)->getPid();
-		cout<<pid<<":";
-		(*it)->printArgs((*it)->getJob(), (*it)->getNumOfArgs());
-		cout<<endl;
+		cout<<pid<<": "<<(*it)->getJob()<<endl;
 		kill((*it)->getPid(),SIGKILL);
 	}
 }
@@ -1072,7 +1071,7 @@ BuiltInCommand(cmd_line){
 
 JobsCommand::~JobsCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
+		//free(command[i]);
 	}
 }
 
@@ -1109,7 +1108,7 @@ BuiltInCommand(cmd_line){
 
 KillCommand::~KillCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
+		//free(command[i]);
 	}
 }
 
@@ -1170,7 +1169,7 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs)
 
 ForegroundCommand::~ForegroundCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
+		//free(command[i]);
 	}
 }
 
@@ -1198,7 +1197,7 @@ void ForegroundCommand::execute(){
 			return;
 		}
 		pid_t pid = j_entry->getPid();
-		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
+		cout<<j_entry->getJob();
 		cout << " : " << pid << endl;
 		if(j_entry->getGroupID() == 0){ //not special command
 			if(kill(pid, SIGCONT) == 0){
@@ -1238,7 +1237,7 @@ void ForegroundCommand::execute(){
 			cerr << "smash error: fg: jobs list is empty" << endl;
 			return;
 		}
-		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
+		cout<<j_entry->getJob();
 		cout << " : " << (j_entry->getPid()) << endl;
 		pid_t pid = j_entry->getPid();
 		if(j_entry->getGroupID() == 0){
@@ -1286,7 +1285,7 @@ BuiltInCommand(cmd_line){
 
 BackgroundCommand::~BackgroundCommand(){
 	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
+	//	free(command[i]);
 	}
 }
 
@@ -1303,7 +1302,7 @@ void BackgroundCommand::execute(){
 			return;
 		}
 		pid_t pid = j_entry->getPid();
-		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
+		cout<<j_entry->getJob();
 		cout << " : " << pid << endl;
 		if(j_entry->getGroupID() == 0){
 			if(kill(pid, SIGCONT) == -1){
@@ -1332,7 +1331,7 @@ void BackgroundCommand::execute(){
 			return;
 		}
 		pid_t pid = j_entry->getPid();
-		j_entry->printArgsWithoutFirstSpace((j_entry->getJob()), j_entry->getNumOfArgs());
+		cout<<j_entry->getJob();
 		cout << " : " << pid << endl;
 		if(j_entry->getGroupID() == 0){	
 			if(kill(pid, SIGCONT) == -1){
@@ -1384,8 +1383,8 @@ SmallShell::SmallShell() {
 }
 
 SmallShell::~SmallShell() {
-	free(this->plastPwd);
-	delete this->jobs;
+	//free(this->plastPwd);
+	//delete this->jobs;
 // TODO: add your implementation
 }
 
@@ -1395,7 +1394,7 @@ SmallShell::~SmallShell() {
  * */
 static void destroyTemp (char** a, int n){
 	for (int i = 0; i < n; i++) {
-		free(a[i]);
+		//free(a[i]);
 	}
 }
 
@@ -1520,7 +1519,7 @@ char* SmallShell::getlastPwd(){
 }
 
 void SmallShell::setPlastPwd(char *pwd_new){
-	free(this->plastPwd);
+	//free(this->plastPwd);
 	this->plastPwd = (char*)(malloc((strlen(pwd_new) + 1)));
 	memcpy(this->plastPwd, pwd_new, strlen(pwd_new) + 1);
 }
