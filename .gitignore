@@ -6,6 +6,7 @@ Commands
 signals
 *.un~
 tests*
-files
+files*
 *.py
 Readme*
+unit*
