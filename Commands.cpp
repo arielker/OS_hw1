@@ -418,6 +418,21 @@ void CopyCommand::execute() {
 				kill(getpid(), SIGKILL);
 				return;
 			}
+			
+			char a[4096];
+			realpath(sourceAddress,a);
+			char b[4096];
+			realpath(destinationAddress,b);
+				
+			if(a!=nullptr && b!=nullptr){
+				if(strcmp(a,b)==0){
+					cout<<"smash: "<<sourceAddress<<" was copied to "<<destinationAddress<<endl;
+					kill(getpid(),SIGKILL);
+					return;
+				}		
+			}
+			
+			
 			file[1] = open(destinationAddress, O_WRONLY | O_CREAT | O_TRUNC,0666);
 			if(file[1] == -1){
 				close(file[0]);
