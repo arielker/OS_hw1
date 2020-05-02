@@ -5,3 +5,7 @@ smash
 Commands
 signals
 *.un~
+tests*
+files
+*.py
+Readme*
