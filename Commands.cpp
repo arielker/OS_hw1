@@ -83,9 +83,8 @@ static void destroyTemp (char** a, int n);
 //--------------------------------
 
 Command::Command(const char* cmd_line) : is_background(false) {
-	this->cmd_line=(char*) malloc(sizeof(cmd_line)+1);
-	strcpy(this->cmd_line,cmd_line);
-	
+	this->cmd_line=(char*) malloc(strlen(cmd_line)+1);
+	memcpy(this->cmd_line,cmd_line, strlen(cmd_line) + 1);
 	this->numOfArgs = _parseCommandLine(cmd_line, this->command);
 }
 
@@ -93,6 +92,7 @@ Command::~Command(){
 	/*for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
 	}*/
+	free(this->cmd_line);
 }
 
 //--------------------------------
@@ -950,7 +950,9 @@ JobsList::~JobsList(){
 void JobsList::addJob(Command* cmd,pid_t pid, bool isStopped, pid_t g){
 	FUNC_ENTRY()
 	SmallShell& s = SmallShell::getInstance();
-	if(!s.getIsForked())this->removeFinishedJobs();
+	if(!s.getIsForked()){
+		this->removeFinishedJobs();
+	}
 	time_t t;
 	time(&t);
 	pid_t p = pid;
@@ -989,7 +991,9 @@ void JobsList::printJobsList(){
 
  JobsList::JobEntry* JobsList::getJobById(int jobId){
 	SmallShell& s = SmallShell::getInstance();
-	if(!s.getIsForked())this->removeFinishedJobs();
+	if(!s.getIsForked()){
+		this->removeFinishedJobs();
+	}
 	if(jobId < 0){
 		 return nullptr;
 	}
@@ -1003,7 +1007,9 @@ void JobsList::printJobsList(){
 
 void JobsList::removeJobById(int jobId){
 	SmallShell& s = SmallShell::getInstance();
-	if(!s.getIsForked())this->removeFinishedJobs();
+	if(!s.getIsForked()){
+		this->removeFinishedJobs();
+	}
 	int size = this->jobs.size();
 	if(jobId < 1 || jobId > size){
 		return;
@@ -1026,7 +1032,9 @@ void JobsList::removeJobById(int jobId){
 
 JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
 	SmallShell& s = SmallShell::getInstance();
-	if(!s.getIsForked())this->removeFinishedJobs();
+	if(!s.getIsForked()){
+		this->removeFinishedJobs();
+	}
 	if(this->jobs.empty()){
 		return nullptr;
 	}
@@ -1117,11 +1125,11 @@ JobsList::JobEntry* JobsList::getLastJob(int* last_job_id){
 		return nullptr;
 	}
 	JobEntry* jmax;
-	int max=0;
+	int max = 0;
 	for(JobEntry* j : this->jobs){
 		if(nullptr != j && j->getJobId() > max){
 			max = j->getJobId();
-			jmax=j;
+			jmax = j;
 		}
 	}
 	*last_job_id = max;
@@ -1172,11 +1180,17 @@ void KillCommand::execute(){
 		}
 	}
 	int job_id = atoi(command[2]);
+	if(strcmp(this->command[2], "0") != 0){
+		if(job_id == 0){
+			cerr << "smash error: fg: invalid arguments" << endl;
+			return;
+		}
+	}
 	if(signum < 0 || signum > 31){
 		cerr << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
-	JobsList::JobEntry* j_entry=j->getJobById(job_id);
+	JobsList::JobEntry* j_entry = j->getJobById(job_id);
 	if(j_entry == nullptr){
 		cerr << "smash error: kill: job-id "<< job_id <<" does not exist" << endl;
 		return;
@@ -1222,6 +1236,12 @@ void ForegroundCommand::execute(){
 	if(this->numOfArgs == 2 && strcmp(this->command[1], "&") != 0){
 		int wstatus = 0;
 		int job_id = atoi(this->command[1]);
+		if(strcmp(this->command[1], "0") != 0){ //what if fg -0 ?
+			if(job_id == 0){
+				cerr << "smash error: fg: invalid arguments" << endl;
+				return;
+			}
+		}
 		JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
 		if(j_entry == nullptr){
 			cerr << "smash error: fg: job-id "<<job_id<<" does not exist" << endl;
@@ -1352,6 +1372,12 @@ void BackgroundCommand::execute(){
 		}
 	} else { //numOfArgs = 2
 		int jobId = atoi(this->command[1]);
+		if (strcmp(this->command[1], "0") != 0){ //what if bg -0 ?
+			if(jobId == 0){
+				cerr << "smash error: fg: invalid arguments" << endl;
+				return;
+			}
+		}
 		JobsList::JobEntry* j_entry = this->j->getJobById(jobId);
 		if(nullptr == j_entry){
 			cerr << "smash error: bg: job-id " << jobId << " does not exist" << endl;
