@@ -1196,9 +1196,16 @@ void KillCommand::execute(){
 		return;
 	}
 	int j_pid = j_entry->getPid();
-	if(kill(j_pid,signum) == -1){
-		perror("smash error: kill failed");
-		return;
+	if(j_entry->getGroupID() == 0){
+		if(kill(j_pid,signum) == -1){
+			perror("smash error: kill failed");
+			return;
+		}
+	} else {
+		if(killpg(j_entry->getGroupID(), signum) == -1){
+			perror("smash error: kill failed");
+			return;
+		}
 	}
 	cout << "signal number "<< signum << " was sent to pid "<< j_pid << endl;
 }
