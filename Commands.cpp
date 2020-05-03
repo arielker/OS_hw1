@@ -1182,7 +1182,7 @@ void KillCommand::execute(){
 	int job_id = atoi(command[2]);
 	if(strcmp(this->command[2], "0") != 0){
 		if(job_id == 0){
-			cerr << "smash error: fg: invalid arguments" << endl;
+			cerr << "smash error: kill: invalid arguments" << endl;
 			return;
 		}
 	}
@@ -1374,7 +1374,7 @@ void BackgroundCommand::execute(){
 		int jobId = atoi(this->command[1]);
 		if (strcmp(this->command[1], "0") != 0){ //what if bg -0 ?
 			if(jobId == 0){
-				cerr << "smash error: fg: invalid arguments" << endl;
+				cerr << "smash error: bg: invalid arguments" << endl;
 				return;
 			}
 		}
