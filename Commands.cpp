@@ -239,6 +239,7 @@ Command(cmd_line){
 void RedirectionCommand::execute(){
 	FUNC_ENTRY()
 	SmallShell& smash = SmallShell::getInstance();
+	smash.getJobs()->removeFinishedJobs();
 	string cmd_line_until_sign = this->cmd_line_tmp.substr(0, red_index);
 	cmd_line_until_sign = _trim(cmd_line_until_sign);
 	Command* cmd = smash.CreateCommand(cmd_line_until_sign.c_str());
@@ -597,6 +598,7 @@ void PipeCommand::execute(){
 	if(this->is_background){ //in background
 		Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
 		Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
+		smash.getJobs()->removeFinishedJobs();
 		pid_t pid = fork();
 		if(pid == 0){
 			setpgrp();
@@ -682,6 +684,7 @@ void PipeCommand::execute(){
 	} else { //not in background
 		Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
 		Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
+		smash.getJobs()->removeFinishedJobs();
 		pid_t pid = fork();
 		if(pid == 0){
 			setpgrp();
@@ -962,7 +965,8 @@ void JobsList::addJob(Command* cmd,pid_t pid, bool isStopped, pid_t g){
 }
 
 void JobsList::printJobsList(){
-	this->removeFinishedJobs();
+	SmallShell& s = SmallShell::getInstance();
+	if(!s.getIsForked()) this->removeFinishedJobs();
 	for(JobEntry* j : this->jobs){
 		if(j->getIsStopped()){
 			time_t t;
