@@ -949,7 +949,8 @@ JobsList::~JobsList(){
 
 void JobsList::addJob(Command* cmd,pid_t pid, bool isStopped, pid_t g){
 	FUNC_ENTRY()
-	this->removeFinishedJobs();
+	SmallShell& s = SmallShell::getInstance();
+	if(!s.getIsForked())this->removeFinishedJobs();
 	time_t t;
 	time(&t);
 	pid_t p = pid;
@@ -987,7 +988,8 @@ void JobsList::printJobsList(){
 }
 
  JobsList::JobEntry* JobsList::getJobById(int jobId){
-	this->removeFinishedJobs();
+	SmallShell& s = SmallShell::getInstance();
+	if(!s.getIsForked())this->removeFinishedJobs();
 	if(jobId < 0){
 		 return nullptr;
 	}
@@ -1000,7 +1002,8 @@ void JobsList::printJobsList(){
 }
 
 void JobsList::removeJobById(int jobId){
-	this->removeFinishedJobs();
+	SmallShell& s = SmallShell::getInstance();
+	if(!s.getIsForked())this->removeFinishedJobs();
 	int size = this->jobs.size();
 	if(jobId < 1 || jobId > size){
 		return;
@@ -1022,7 +1025,8 @@ void JobsList::removeJobById(int jobId){
 }
 
 JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
-	this->removeFinishedJobs();
+	SmallShell& s = SmallShell::getInstance();
+	if(!s.getIsForked())this->removeFinishedJobs();
 	if(this->jobs.empty()){
 		return nullptr;
 	}
@@ -1046,7 +1050,8 @@ JobsList::JobEntry* JobsList::getLastStoppedJob(int* jobId){
 void JobsList::killAllJobs(){
 	//THIS FUNCTION IS USED BY QUIT COMMAND EXECUTE ACCORDING TO ITS
 	//SYNTAX! DO NOT CHANGE THIS BEFORE CHANGING QUIT COMMAND EXECUTE!
-	this->removeFinishedJobs();
+	SmallShell& s = SmallShell::getInstance();
+	if(!s.getIsForked())this->removeFinishedJobs();
 	int numOfJobs=this->getJobs().size();
 	cout<<"smash: sending SIGKILL signal to "<<numOfJobs<<" jobs:"<<endl;
 	for (vector<JobEntry*>::iterator it = jobs.begin() ; it != jobs.end(); ++it){
@@ -1154,7 +1159,6 @@ void KillCommand::execute(){
 		cerr << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
-	SmallShell& s = SmallShell::getInstance();
 	int signum;
 	if(strcmp(command[1], "-0") == 0){
 		signum = 0;
@@ -1172,7 +1176,7 @@ void KillCommand::execute(){
 		cerr << "smash error: kill: invalid arguments" << endl;
 		return;
 	}
-	JobsList::JobEntry* j_entry=s.getJobs()->getJobById(job_id);
+	JobsList::JobEntry* j_entry=j->getJobById(job_id);
 	if(j_entry == nullptr){
 		cerr << "smash error: kill: job-id "<< job_id <<" does not exist" << endl;
 		return;
