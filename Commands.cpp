@@ -1186,10 +1186,7 @@ void KillCommand::execute(){
 			return;
 		}
 	}
-	if(signum < 0 || signum > 31){
-		cerr << "smash error: kill: invalid arguments" << endl;
-		return;
-	}
+	
 	JobsList::JobEntry* j_entry = j->getJobById(job_id);
 	if(j_entry == nullptr){
 		cerr << "smash error: kill: job-id "<< job_id <<" does not exist" << endl;
@@ -1529,7 +1526,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 		KillCommand* c = new KillCommand(cmd_line, smash.getJobs());
 		this->setCurrentCommand(c);
 		return c;
-	}
+	}//*/
 	if(strcmp(temp[0], "fg") == 0){
 		destroyTemp(temp, n);
 		ForegroundCommand* c = new ForegroundCommand(cmd_line, smash.getJobs());
