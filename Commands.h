@@ -77,26 +77,7 @@ class PipeCommand : public Command {
   void execute() override;
 };
 
-class RedirectionCommand : public Command {
- // TODO: Add your data members
-	const char* over = ">";
-	const char* append = ">>";
-	string cmd_line_tmp;
-	bool is_append;
-	int red_sign_len;
-	int red_index;
-	string file_name;
- public:
-  explicit RedirectionCommand(const char* cmd_line);
-  virtual ~RedirectionCommand() override {
-	  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
-		  free(this->command[i]);
-	  }
-  }
-  void execute() override;
-  //void prepare() override;
-  //void cleanup() override;
-};
+
 
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
@@ -255,6 +236,7 @@ class ForegroundCommand : public BuiltInCommand {
  // TODO: Add your data members
 	JobsList* j;
  public:
+ int* waitForPid=nullptr;
   ForegroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~ForegroundCommand() override;
   void execute() override;
@@ -304,8 +286,11 @@ class SmallShell {
   char prompt[80] = "smash";
   char *plastPwd = nullptr;
   bool is_forked = false;
+
+  
   SmallShell();
  public:
+ int* waitForPid=nullptr;
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
@@ -315,6 +300,10 @@ class SmallShell {
     // Instantiated on first use.
     return instance;
   }
+  
+ 
+ 
+  
   ~SmallShell();
   void executeCommand(const char* cmd_line);
   void setPrompt(char* prompt);
@@ -357,5 +346,31 @@ class SmallShell {
   }
   // TODO: add extra methods as needed
 };
-
+class RedirectionCommand : public Command {
+ // TODO: Add your data members
+	const char* over = ">";
+	const char* append = ">>";
+	string cmd_line_tmp;
+	bool is_append;
+	int red_sign_len;
+	int red_index;
+	string file_name;
+ public:
+  explicit RedirectionCommand(const char* cmd_line);
+  virtual ~RedirectionCommand() override {
+	  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
+		  free(this->command[i]);
+	  }
+	  SmallShell& smash = SmallShell::getInstance();
+	  if(smash.waitForPid!=nullptr){
+		  free(smash.waitForPid);
+			smash.waitForPid=nullptr;
+		}
+  }
+  void execute() override;
+  //void prepare() override;
+  //void cleanup() override;
+};
 #endif //SMASH_COMMAND_H_
+
+
