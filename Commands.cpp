@@ -1091,7 +1091,7 @@ void JobsList::removeFinishedJobs(){
 				j = this->jobs.begin();
 				continue;
 				//---
-				perror("smash error: waitpid failed");
+				//perror("smash error: waitpid failed");
 			
 			}
 		}
