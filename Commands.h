@@ -47,8 +47,8 @@ class Command {
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line);
-  virtual ~BuiltInCommand() override;
+  BuiltInCommand(const char* cmd_line): Command(cmd_line){}
+  virtual ~BuiltInCommand() = default;
 };
 
 class ExternalCommand : public Command {
@@ -73,11 +73,9 @@ class PipeCommand : public Command {
   // TODO: Add your data members
  public:
   PipeCommand(const char* cmd_line);
-  virtual ~PipeCommand() override;
+  virtual ~PipeCommand() override = default;
   void execute() override;
 };
-
-
 
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
@@ -92,7 +90,7 @@ class GetCurrDirCommand : public BuiltInCommand {
 	int n;
  public:
   GetCurrDirCommand(const char* cmd_line);
-  virtual ~GetCurrDirCommand() override;
+  virtual ~GetCurrDirCommand() override = default;
   void execute() override;
 };
 
@@ -101,7 +99,7 @@ class ShowPidCommand : public BuiltInCommand {
 	int n;
  public:
   ShowPidCommand(const char* cmd_line);
-  virtual ~ShowPidCommand() override;
+  virtual ~ShowPidCommand() override  = default;
   void execute() override;
 };
 
@@ -110,12 +108,7 @@ class QuitCommand : public BuiltInCommand {
 	JobsList* j;
 	public:
 		QuitCommand(const char* cmd_line, JobsList* jobs);
-		virtual ~QuitCommand() override{
-			//delete j;
-			for (int i = 0; i < numOfArgs; i++){
-				free(command[i]);
-			}
-		}
+		virtual ~QuitCommand() override = default;
 		void execute() override;
 };
 
@@ -220,7 +213,7 @@ class JobsCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~JobsCommand() override;
+  virtual ~JobsCommand() override = default;
   void execute() override;
 };
 
@@ -228,7 +221,7 @@ class KillCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   KillCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~KillCommand() override;
+  virtual ~KillCommand() override = default;
   void execute() override;
 };
 
@@ -238,7 +231,7 @@ class ForegroundCommand : public BuiltInCommand {
  public:
  int* waitForPid=nullptr;
   ForegroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~ForegroundCommand() override;
+  virtual ~ForegroundCommand() override = default;
   void execute() override;
 };
 
@@ -247,7 +240,7 @@ class BackgroundCommand : public BuiltInCommand {
 	JobsList* j;
  public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~BackgroundCommand() override;
+  virtual ~BackgroundCommand() override = default;
   void execute() override;
 };
 
@@ -270,7 +263,7 @@ class ChangePromptCommand : public BuiltInCommand {
 	int n;
 	public:
 		ChangePromptCommand(const char* cmd_line);
-		virtual ~ChangePromptCommand() override;
+		virtual ~ChangePromptCommand() override = default;
 		void execute() override;
 };
 
@@ -290,7 +283,7 @@ class SmallShell {
   
   SmallShell();
  public:
- int* waitForPid=nullptr;
+  int* waitForPid = nullptr;
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
@@ -300,9 +293,6 @@ class SmallShell {
     // Instantiated on first use.
     return instance;
   }
-  
- 
- 
   
   ~SmallShell();
   void executeCommand(const char* cmd_line);
@@ -346,6 +336,7 @@ class SmallShell {
   }
   // TODO: add extra methods as needed
 };
+
 class RedirectionCommand : public Command {
  // TODO: Add your data members
 	const char* over = ">";
@@ -358,14 +349,11 @@ class RedirectionCommand : public Command {
  public:
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand() override {
-	  for (int i = 0; i < COMMAND_MAX_ARGS; i++){
-		  free(this->command[i]);
-	  }
 	  SmallShell& smash = SmallShell::getInstance();
-	  if(smash.waitForPid!=nullptr){
+	  if(smash.waitForPid != nullptr){
 		  free(smash.waitForPid);
-			smash.waitForPid=nullptr;
-		}
+		  smash.waitForPid = nullptr;
+	  }
   }
   void execute() override;
   //void prepare() override;

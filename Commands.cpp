@@ -83,28 +83,16 @@ static void destroyTemp (char** a, int n);
 //--------------------------------
 
 Command::Command(const char* cmd_line) : is_background(false) {
-	this->cmd_line=(char*) malloc(strlen(cmd_line)+1);
+	this->cmd_line=(char*) malloc(strlen(cmd_line) + 1);
 	memcpy(this->cmd_line,cmd_line, strlen(cmd_line) + 1);
 	this->numOfArgs = _parseCommandLine(cmd_line, this->command);
 }
 
 Command::~Command(){
-	/*for (int i = 0; i < numOfArgs; i++) {
+	for (int i = 0; i < numOfArgs; i++) {
 		free(this->command[i]);
-	}*/
-	free(this->cmd_line);
-}
-
-//--------------------------------
-//Built In Commands
-//--------------------------------
-
-BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line){}
-
-BuiltInCommand::~BuiltInCommand(){
-	for (int i = 0; i < COMMAND_MAX_ARGS; i++) {
-		//free(this->command[i]);
 	}
+	free(this->cmd_line);
 }
 
 //--------------------------------
@@ -137,9 +125,6 @@ ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line){
 }
 
 ExternalCommand::~ExternalCommand(){
-	for (int i = 0; i < this->numOfArgs; i++) {
-		free(this->command[i]);
-	}
 	free(external_args[0]);
 	free(external_args[1]);
 	free(external_args[2]);
@@ -161,9 +146,7 @@ void ExternalCommand::execute() {
 				}
 			} else if (pid > 0) {
 				smash.setCurrentFgPid(pid);
-				
 				waitpid(pid, nullptr, WUNTRACED);
-
 				smash.setCurrentFgPid(smash.getSmashPid());
 			} else{
 				perror("smash error: fork failed");
@@ -208,9 +191,6 @@ void ExternalCommand::execute() {
 //Redirection Command
 //--------------------------------
 
-
-
-
 RedirectionCommand::RedirectionCommand(const char* cmd_line): 
 Command(cmd_line){
 	FUNC_ENTRY()
@@ -240,17 +220,15 @@ Command(cmd_line){
 }
 
 void RedirectionCommand::execute(){
-	
 	FUNC_ENTRY()
 	SmallShell& smash = SmallShell::getInstance();
-	
-	if(smash.waitForPid!=nullptr){
+	if(smash.waitForPid != nullptr) {
 		free(smash.waitForPid);
 		
 	}
 	smash.waitForPid =(int*) malloc(sizeof(int*));
 	//cout<<"CREATED!"<<endl;
-	*smash.waitForPid=0;
+	*smash.waitForPid = 0;
 	//cout<<"ADDRESS REDIRECT: "<<smash.waitForPid<<endl;
 	smash.getJobs()->removeFinishedJobs();
 	string cmd_line_until_sign = this->cmd_line_tmp.substr(0, red_index);
@@ -322,20 +300,19 @@ void RedirectionCommand::execute(){
 	} else { // not in background
 		if(this->is_append) { //append
 			int newfd=dup(1);
-				close(1);
-				int open_res = open(file_name.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
-				if (open_res == -1){
-					perror("smash error: open failed");
-					dup2(newfd,1);
-					return;
-				}
+			close(1);
+			int open_res = open(file_name.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+			if (open_res == -1){
+				perror("smash error: open failed");
+				dup2(newfd,1);
+				return;
+			}
 			pid_t pid = fork();
 			if(pid == 0){
 				setpgrp();
-				
-					smash.setIsForked(true);
-					cmd->execute();
-					smash.setIsForked(false);
+				smash.setIsForked(true);
+				cmd->execute();
+				smash.setIsForked(false);
 				if(-1 == close(open_res)){
 					perror("smash error: close failed");
 					return;
@@ -345,25 +322,21 @@ void RedirectionCommand::execute(){
 			} else if (pid > 0) {
 				smash.setCurrentFgPid(pid);
 				smash.setCurrentFgGid(pid);
-				
-				if(smash.waitForPid!=nullptr &&*smash.waitForPid!=0){
+				if(smash.waitForPid != nullptr && *smash.waitForPid != 0){
 					smash.setCurrentFgPid(*smash.waitForPid);
 					smash.setCurrentFgGid(*smash.waitForPid);
 					waitpid(*smash.waitForPid, nullptr, WUNTRACED);
-					*smash.waitForPid=0;
+					*smash.waitForPid = 0;
 					
 				}
-				if(smash.waitForPid!=nullptr){
+				if(smash.waitForPid != nullptr){
 					free(smash.waitForPid);
-					smash.waitForPid=nullptr;
+					smash.waitForPid = nullptr;
 				}
 				smash.setCurrentFgPid(pid);
 				smash.setCurrentFgGid(pid);
-				
-				
 				waitpid(pid, nullptr, WUNTRACED);
-				
-				if(-1 == close(open_res)){
+				if(-1 == close(open_res)) {
 					perror("smash error: close failed");
 					dup2(newfd,1);
 					smash.setCurrentFgPid(getpid());
@@ -383,20 +356,19 @@ void RedirectionCommand::execute(){
 			}
 		} else { //override
 			int newfd=dup(1);
-				close(1);
-				int open_res = open(file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
-				if (open_res == -1){
-					perror("smash error: open failed");
-					dup2(newfd,1);
-					return;
-				}
+			close(1);
+			int open_res = open(file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+			if (open_res == -1){
+				perror("smash error: open failed");
+				dup2(newfd,1);
+				return;
+			}
 			pid_t pid = fork();
 			if(pid == 0){
 				setpgrp();
-				
-					smash.setIsForked(true);
-					cmd->execute();
-					smash.setIsForked(false);
+				smash.setIsForked(true);
+				cmd->execute();
+				smash.setIsForked(false);
 				if(-1 == close(open_res)){
 					perror("smash error: close failed");
 					return;
@@ -407,17 +379,15 @@ void RedirectionCommand::execute(){
 			} else if (pid > 0) {
 				smash.setCurrentFgPid(pid);
 				smash.setCurrentFgGid(pid);
-				
 				//cout<<"RECEIVED pid:"<<*smash.waitForPid<< " from:"<<smash.waitForPid<<endl;
-				if(smash.waitForPid!=nullptr &&*smash.waitForPid!=0){
+				if(smash.waitForPid != nullptr && *smash.waitForPid != 0){
 					smash.setCurrentFgPid(*smash.waitForPid);
 					smash.setCurrentFgGid(*smash.waitForPid);
 					//cout<<"IN BOI pid:"<<*smash.waitForPid<<endl;
 					waitpid(*smash.waitForPid, nullptr, WUNTRACED);
-					*smash.waitForPid=0;
-					
+					*smash.waitForPid = 0;
 				}
-				if(smash.waitForPid!=nullptr){
+				if(smash.waitForPid != nullptr){
 					free(smash.waitForPid);
 					smash.waitForPid=nullptr;
 					//cout<<"FREE!!!"<<endl;
@@ -426,7 +396,6 @@ void RedirectionCommand::execute(){
 				smash.setCurrentFgGid(pid);
 				//cout<<"OUT"<<endl;
 				waitpid(pid, nullptr, WUNTRACED);
-				
 				if(-1 == close(open_res)){
 					perror("smash error: close failed");
 					dup2(newfd,1);
@@ -468,9 +437,6 @@ CopyCommand::~CopyCommand(){
 		for (int i = 0; i < this->n; i++) {
 			free(cmd_without_bg_sign[i]);
 		}
-	}
-	for (int i = 0; i < this->numOfArgs; i++){
-			free(command[i]);
 	}
 }
 
@@ -656,12 +622,6 @@ PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line){
 	} else {
 		this->cmd2 = this->cmd_line_tmp.substr(pipe_index + pipe_sign_len, cmd_line_tmp.size() - pipe_index - pipe_sign_len);
 		this->cmd2 = _trim(this->cmd2);
-	}
-}
-
-PipeCommand::~PipeCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
 	}
 }
 
@@ -898,44 +858,27 @@ void ChangePromptCommand::execute(){
 	return;
 }
 
-ChangePromptCommand::~ChangePromptCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
-	}
-}
-
 //--------------------------------
 //Show PID command
 //--------------------------------
 
 ShowPidCommand::ShowPidCommand(const char* cmd_line) :
 BuiltInCommand(cmd_line), n(1){
-	pid =  getpid();
-}
-
-ShowPidCommand::~ShowPidCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
-	}
+	SmallShell& s = SmallShell::getInstance();
+	this->pid = s.getSmashPid();
+	//pid =  getpid();
 }
 
 void ShowPidCommand::execute(){
-	cout << "smash pid is "<< pid << endl;
+	cout << "smash pid is "<< this->pid << endl;
 }
 
 //--------------------------------
 // Get Current Directory Command
 //--------------------------------
-GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) :
-BuiltInCommand(cmd_line) {
-	this->n = 1;
-}
 
-GetCurrDirCommand::~GetCurrDirCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
-	}
-}
+GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) :
+BuiltInCommand(cmd_line), n(1) {}
 
 void GetCurrDirCommand::execute(){
 	char* dirpath = get_current_dir_name();
@@ -997,9 +940,8 @@ void ChangeDirCommand::execute(){
 }
 
 ChangeDirCommand::~ChangeDirCommand(){
-	free(this->lastPwd);
-	for (int i = 0; i < numOfArgs; i++) {
-		free(this->command[i]);
+	if(nullptr != this->lastPwd){	
+		free(this->lastPwd);
 	}
 }
 
@@ -1181,12 +1123,6 @@ BuiltInCommand(cmd_line){
 	j = jobs;
 }
 
-JobsCommand::~JobsCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
-	}
-}
-
 void JobsCommand::execute(){
 	j->printJobsList();
 }
@@ -1216,12 +1152,6 @@ JobsList::JobEntry* JobsList::getLastJob(int* last_job_id){
 KillCommand::KillCommand(const char* cmd_line, JobsList* jobs):
 BuiltInCommand(cmd_line){
 	j = jobs;
-}
-
-KillCommand::~KillCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
-	}
 }
 
 void KillCommand::execute(){
@@ -1286,49 +1216,46 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs)
 : BuiltInCommand(cmd_line) {
 	this->j = jobs;
 	this->waitForPid=nullptr;
-		SmallShell& s = SmallShell::getInstance();
+	SmallShell& s = SmallShell::getInstance();
 	if(s.waitForPid!=nullptr){	
-		
-	this->waitForPid=s.waitForPid;
+		this->waitForPid=s.waitForPid;
 		//cout<<"ADDRESS FOREGROUND: "<<this->waitForPid<<endl;
-		
-	if(nullptr == this->j){
-		*this->waitForPid=0;
-		return;
-	}
-	if(this->j->getJobs().empty() && this->numOfArgs == 1){
-		*this->waitForPid=0;
-		return;
-	}
-	if(this->numOfArgs > 2 && strcmp(this->command[2], "&") != 0) {
-		*this->waitForPid=0;
-		return;
-	}
-		
-	if(this->numOfArgs == 2 && strcmp(this->command[1], "&") != 0){
-		int job_id = atoi(this->command[1]);
-		JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
-		if(j_entry == nullptr){
-			*this->waitForPid=0;
+		if(nullptr == this->j) {
+			*this->waitForPid = 0;
 			return;
 		}
-		*this->waitForPid = j_entry->getPid();
-	}else{
-		int last_job_id=0;
-		JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
-		if(nullptr == j_entry){
-			*this->waitForPid=0;
+		if(this->j->getJobs().empty() && this->numOfArgs == 1){
+			*this->waitForPid = 0;
 			return;
 		}
-		*this->waitForPid = j_entry->getPid();
-	}
+		if(this->numOfArgs > 2 && strcmp(this->command[2], "&") != 0) {
+			*this->waitForPid = 0;
+			return;
+		}
+		if(this->numOfArgs == 2 && strcmp(this->command[1], "&") != 0){
+			int job_id = atoi(this->command[1]);
+			if(strcmp(this->command[1], "0") != 0){ //what if fg -0 ?
+				if(job_id == 0){
+					*this->waitForPid = 0;
+					return;
+				}
+			}
+			JobsList::JobEntry* j_entry = s.getJobs()->getJobById(job_id);
+			if(j_entry == nullptr){
+				*this->waitForPid=0;
+				return;
+			}
+			*this->waitForPid = j_entry->getPid();
+		} else {
+			int last_job_id = 0;
+			JobsList::JobEntry* j_entry = this->j->getLastJob(&last_job_id);
+			if(nullptr == j_entry){
+				*this->waitForPid = 0;
+				return;
+			}
+			*this->waitForPid = j_entry->getPid();
+		}
 	
-}
-}
-
-ForegroundCommand::~ForegroundCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
 	}
 }
 
@@ -1370,16 +1297,15 @@ void ForegroundCommand::execute(){
 				s.setCurrentFgPid(pid);
 				s.setCurrentFgGid(0);
 				s.setCurrentCommand(j_entry->getCmd());
-				if(this->waitForPid==nullptr){ 
+				if(this->waitForPid == nullptr){ 
 					pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 					if(result != pid){
 						perror("smash error: waitpid failed");
 						return;
 					}
 				}else{
-					*this->waitForPid=pid;
+					*this->waitForPid = pid;
 					//cout<<"SENDING pid:"<<*this->waitForPid<< " to: "<< this->waitForPid<<endl;
-
 				}
 			} else {
 				perror("smash error: kill failed");
@@ -1390,7 +1316,7 @@ void ForegroundCommand::execute(){
 				s.setCurrentFgPid(j_entry->getPid());
 				s.setCurrentFgGid(j_entry->getGroupID());
 				s.setSpecialCurrentCommand(j_entry->getCmd());
-				if(this->waitForPid==nullptr){ 
+				if(this->waitForPid == nullptr){ 
 					pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 					if(result != pid){
 						perror("smash error: waitpid failed");
@@ -1398,8 +1324,7 @@ void ForegroundCommand::execute(){
 					}
 				}
 				else{
-					
-					*this->waitForPid=pid;
+					*this->waitForPid = pid;
 					//cout<<"SENDING pid:"<<*this->waitForPid<< " to: "<< this->waitForPid<<endl;
 				}
 			} else {
@@ -1407,7 +1332,6 @@ void ForegroundCommand::execute(){
 				return;
 			}
 		}
-		
 		this->j->removeFinishedJobs(); 
 	} else {
 		int wstatus = 0;
@@ -1424,16 +1348,15 @@ void ForegroundCommand::execute(){
 				s.setCurrentFgPid(j_entry->getPid());
 				s.setCurrentFgGid(0);
 				s.setCurrentCommand(j_entry->getCmd());
-				if(this->waitForPid==nullptr){ 
+				if(this->waitForPid == nullptr){ 
 					pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 					if(result != pid){
 						perror("smash error: waitpid failed");
 						return;
 					}
-				}else{
+				} else {
 					*this->waitForPid=pid;
 					//cout<<"SENDING pid:"<<*this->waitForPid<< " to: "<< this->waitForPid<<endl;
-
 				}
 			} else {
 				perror("smash error: kill failed");
@@ -1444,7 +1367,7 @@ void ForegroundCommand::execute(){
 				s.setCurrentFgPid(j_entry->getPid());
 				s.setCurrentFgGid(j_entry->getGroupID());
 				s.setSpecialCurrentCommand(j_entry->getCmd());
-				if(this->waitForPid==nullptr){ 
+				if(this->waitForPid == nullptr){ 
 					pid_t result = waitpid(pid, &wstatus, WUNTRACED);
 					if(result != pid){
 						perror("smash error: waitpid failed");
@@ -1453,7 +1376,6 @@ void ForegroundCommand::execute(){
 				}else{
 					*this->waitForPid=pid;
 					//cout<<"SENDING pid:"<<*this->waitForPid<< " to: "<< this->waitForPid<<endl;
-
 				}
 			} else {
 				perror("smash error: kill failed");
@@ -1472,12 +1394,6 @@ void ForegroundCommand::execute(){
 BackgroundCommand::BackgroundCommand(const char* cmd_line, JobsList* jobs):
 BuiltInCommand(cmd_line){
 	this->j = jobs;
-}
-
-BackgroundCommand::~BackgroundCommand(){
-	for (int i = 0; i < numOfArgs; i++) {
-		free(command[i]);
-	}
 }
 
 void BackgroundCommand::execute(){
