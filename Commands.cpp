@@ -1194,6 +1194,10 @@ void KillCommand::execute(){
 			return;
 		}
 	}
+	if(signum < 0){
+		cerr << "smash error: kill: invalid arguments" << endl;
+		return;
+	}
 	JobsList::JobEntry* j_entry = j->getJobById(job_id);
 	if(j_entry == nullptr){
 		cerr << "smash error: kill: job-id "<< job_id <<" does not exist" << endl;
