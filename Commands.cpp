@@ -628,11 +628,13 @@ PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line){
 void PipeCommand::execute(){
 	SmallShell& smash = SmallShell::getInstance();
 	if(this->is_background){ //in background
-		Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
-		Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
+		//Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
+		//Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 		smash.getJobs()->removeFinishedJobs();
 		pid_t pid = fork();
 		if(pid == 0){
+			Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
+			Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 			setpgrp();
 			int my_pipe[2];
 			if(this->is_err_to_in){  //error to in
@@ -707,6 +709,8 @@ void PipeCommand::execute(){
 					perror("smash error: fork failed");
 				}
 			}
+			delete cmd_writes;
+			delete cmd_reads;
 			kill(getpid(), SIGKILL);
 		} else if (pid == -1){
 			perror("smash error: fork failed");
@@ -714,11 +718,11 @@ void PipeCommand::execute(){
 			smash.getJobs()->addJob(this, pid, false, pid);
 		}
 	} else { //not in background
-		Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
-		Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 		smash.getJobs()->removeFinishedJobs();
 		pid_t pid = fork();
 		if(pid == 0){
+			Command* cmd_writes = smash.CreateCommand(cmd1.c_str());
+			Command* cmd_reads = smash.CreateCommand(cmd2.c_str());
 			setpgrp();
 			smash.setCurrentFgGid(getpgrp());
 			int my_pipe[2];
@@ -801,6 +805,8 @@ void PipeCommand::execute(){
 					perror("smash error: fork failed");
 				}
 			}
+			delete cmd_writes;
+			delete cmd_reads;
 			kill(getpid(), SIGKILL);
 		} else if (pid > 0){
 			smash.setCurrentFgPid(pid);
@@ -1496,7 +1502,7 @@ SmallShell::SmallShell() {
 }
 
 SmallShell::~SmallShell() {
-	//free(this->plastPwd);
+	free(this->plastPwd);
 	delete this->jobs;
 // TODO: add your implementation
 }
@@ -1507,7 +1513,7 @@ SmallShell::~SmallShell() {
  * */
 static void destroyTemp (char** a, int n){
 	for (int i = 0; i < n; i++) {
-		//free(a[i]);
+		free(a[i]);
 	}
 }
 
@@ -1603,7 +1609,6 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 		this->setCurrentCommand(c);
 		return c;
 	}
-	
 	
 	ExternalCommand *c = new ExternalCommand(cmd_line);
 	destroyTemp(temp, n);
