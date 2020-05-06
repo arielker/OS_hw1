@@ -82,7 +82,7 @@ static void destroyTemp (char** a, int n);
 //Command
 //--------------------------------
 
-Command::Command(const char* cmd_line) : is_background(false) {
+Command::Command(const char* cmd_line) : is_background(false), is_external(false) {
 	this->cmd_line=(char*) malloc(strlen(cmd_line) + 1);
 	memcpy(this->cmd_line,cmd_line, strlen(cmd_line) + 1);
 	this->numOfArgs = _parseCommandLine(cmd_line, this->command);
@@ -93,6 +93,116 @@ Command::~Command(){
 		free(this->command[i]);
 	}
 	free(this->cmd_line);
+}
+
+//--------------------------------
+//Timeout Command
+//--------------------------------
+
+TimeoutCommand::TimeoutCommand(const char* cmd_line) : Command(cmd_line){
+	if(this->numOfArgs < 3){
+		cerr << "smash error: timeout: invalid arguments" << endl;
+		return;
+	}
+	
+	this->is_background = _isBackgroundComamnd(cmd_line);
+	if(this->is_background){
+		char* temp = const_cast<char*>(cmd_line);
+		_removeBackgroundSign(temp);
+		string t1 = string(temp);
+		t1 = _trim(t1);
+		int size = strlen(this->command[0]) + strlen(this->command[1]) + 2;
+		this->cmd_string = _trim(t1.substr(size, t1.size() - size));
+	} else {
+		string t1 = string(cmd_line);
+		int size = strlen(this->command[0]) + strlen(this->command[1]) + 2;
+		this->cmd_string = _trim(t1.substr(size, t1.size() - size));
+	}
+}
+
+void TimeoutCommand::execute(){
+	if(this->numOfArgs < 3){
+		return; //DO NOT DELETE THIS! THE PRINT IS IN THE CONSTRUCTOR!
+	}
+	int duration = atoi(this->command[1]);
+	if(duration <= 0 ){
+		cerr << "smash error: timeout: invalid arguments" << endl;
+		return;
+	}
+	SmallShell& smash = SmallShell::getInstance();
+	
+	//------Minimum duration for alarm calculation------
+	time_t t;
+	time(&t);
+	vector<timeout_member*> vec = smash.getTimeoutVector();
+	int min_duration=duration;
+	bool flagx=true;
+	auto it = vec.begin();
+	while(it != vec.end()){
+		if((*it)->getTimeStamp() + (*it)->getDuration() -t < min_duration){
+			flagx=false;
+			break;
+		}
+		it++;
+	}
+	if(flagx)alarm(duration);
+	//------------
+	
+	Command* cmd = smash.CreateCommand(this->cmd_string.c_str());
+	if(nullptr == cmd){ //shouldn't happen
+		cout << "shit :(" << endl;
+		return;
+	}
+	if(this->is_background){ //in background
+		pid_t pid = fork();
+		if(pid == 0){
+			//setpgrp();
+			smash.setIsForked(true);
+			cmd->execute();
+			smash.setIsForked(false);
+			kill(SIGKILL, getpid());
+			exit(0);
+		} else if(pid > 0){
+			time_t t;
+			time(&t);
+			timeout_member* tm = new timeout_member(duration, t, pid, string(this->cmd_line));
+			vector<timeout_member*> x=smash.getTimeoutVector();
+			x.push_back(tm);
+			smash.setTimeoutVector(x);
+			smash.getJobs()->addJob(this, pid);
+			//delete cmd;
+			return;
+		} else {
+			perror("smash error: fork failed");
+			return;
+		}
+	} else { //not in background
+		pid_t pid = fork();
+		if(pid == 0){
+			//setpgrp();
+			smash.setIsForked(true);
+			cmd->execute();
+			smash.setIsForked(false);
+			kill(SIGKILL, getpid());
+			exit(0);
+		} else if(pid > 0){
+			smash.setCurrentFgPid(pid);
+			smash.setCurrentFgGid(0);
+			time_t t;
+			time(&t);
+			timeout_member* tm = new timeout_member(duration, t, pid, string(this->cmd_line));
+			vector<timeout_member*> x=smash.getTimeoutVector();
+			x.push_back(tm);
+			smash.setTimeoutVector(x);
+			smash.setCurrentCommand(this);
+			waitpid(pid, nullptr, WUNTRACED);
+			smash.setCurrentFgPid(smash.getSmashPid());
+			return;
+		} else {
+			perror("smash error: fork failed");
+			return;
+		}
+	}
 }
 
 //--------------------------------
@@ -122,6 +232,8 @@ ExternalCommand::ExternalCommand(const char* cmd_line) : Command(cmd_line){
 	memset(external_args[2], 0, cmd_size + 1);
 	memcpy(external_args[2], temp_cmd, cmd_size + 1);
 	external_args[3] = NULL;
+	
+	this->is_external = true;
 }
 
 ExternalCommand::~ExternalCommand(){
@@ -213,8 +325,8 @@ Command(cmd_line){
 		this->file_name = t1.substr(red_index + red_sign_len, cmd_line_tmp.size() - red_index - red_sign_len);
 		this->file_name = _trim(this->file_name);
 	} else {
-		file_name = this->cmd_line_tmp.substr(red_index + red_sign_len, cmd_line_tmp.size() - red_index - red_sign_len);
-		file_name = _trim(file_name);
+		this->file_name = this->cmd_line_tmp.substr(red_index + red_sign_len, cmd_line_tmp.size() - red_index - red_sign_len);
+		this->file_name = _trim(file_name);
 	}
 	FUNC_EXIT()
 }
@@ -1503,6 +1615,8 @@ void QuitCommand::execute(){
 SmallShell::SmallShell() {
 // TODO: add your implementation
 	this->jobs = new JobsList();
+	vector<timeout_member*> tmp;
+	this->timeout_vector = tmp;
 }
 
 SmallShell::~SmallShell() {
@@ -1531,6 +1645,16 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 	int n = _parseCommandLine(cmd_line, temp);
 	if(n == 0){
 		return nullptr;
+	}
+	if(strcmp(temp[0], "timeout") == 0){
+		destroyTemp(temp, n);
+		if(n == 1){
+			cerr << "smash error: timeout: invalid arguments" << endl;
+			return nullptr;
+		}
+		TimeoutCommand* c = new TimeoutCommand(cmd_line);
+		this->setSpecialCurrentCommand(c);
+		return c;
 	}
 	if((string(cmd_line)).find_first_of(">") != string::npos){
 		destroyTemp(temp,n);

@@ -79,10 +79,71 @@ void ctrlZHandler(int sig_num) {
 }
 
 void alarmHandler(int sig_num) {
-  std::cout<<"smash got an alarm"<<std::endl;
-  //TODO: search which command caused the alarm,
-  //and set pid to the command's pid.
-  int pid=-99;//TODO: change this! (-99 to real pid)
-  kill(pid,SIGKILL);
-  //cout<<"smash: "<<[command-line]<<" timed out!"<<endl;
+	cout << "smash: got an alarm" << endl;
+	SmallShell& s = SmallShell::getInstance();
+	time_t t;
+	time(&t);
+	vector<timeout_member*> vec = s.getTimeoutVector();
+	auto it = vec.begin();
+	while(it != vec.end()){
+		/*cout << "time: "<< t << endl;
+		cout << "time stamp: " << (*it)->getTimeStamp() << endl;
+		cout << "duration: " << (*it)->getDuration() << endl;*/
+		if((*it)->getTimeStamp() + (*it)->getDuration() <= t){
+			//cout << "smash: got an alarm" << endl;
+			int wstatus = 0;
+			int res = waitpid((*it)->getPid(), &wstatus, WNOHANG);
+			if((res == (*it)->getPid() && (WIFEXITED(wstatus) || WIFSIGNALED(wstatus))) || res == -1){
+				timeout_member* temp = *it;
+				vec.erase(it);
+				s.setTimeoutVector(vec);
+				delete temp;
+				break;
+			}
+			if(kill((*it)->getPid(),SIGKILL) != -1){
+				cout << "smash: " << (*it)->getCmdString() << " timed out!" << endl;
+			}
+			timeout_member* temp = *it;
+			vec.erase(it);
+			s.setTimeoutVector(vec);
+			delete temp;
+			break;
+		}
+		it++;
+	}
+	//------Minimum duration for alarm calculation------
+	int min_duration;
+	
+	if(vec.size()>1){
+		auto iter = vec.begin();
+		min_duration =(*iter)->getTimeStamp() + (*iter)->getDuration() - t;
+		iter++;
+		while(iter != vec.end()){
+			if((*iter)->getTimeStamp() + (*iter)->getDuration()-t < min_duration){
+				min_duration =(*iter)->getTimeStamp() + (*iter)->getDuration() - t;
+			
+			}
+			iter++;
+		}
+		alarm(min_duration);
+	} else if(vec.size()==1){
+		auto iter = vec.begin();
+		min_duration =(*iter)->getTimeStamp() + (*iter)->getDuration() - t;
+		alarm(min_duration);
+	}
+	//------------
+	
+	s.getJobs()->removeFinishedJobs();
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -26,6 +26,7 @@ class Command {
 	char* cmd_line;
 	char* command [COMMAND_MAX_ARGS];
 	int numOfArgs;
+	bool is_external;
 // TODO: Add your data members
  public:
   Command(const char* cmd_line);
@@ -40,9 +41,59 @@ class Command {
   int getNumOfArgs(){
 	  return this->numOfArgs;
   }
+  bool isExternal(){
+	  return this->is_external;
+  }
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
+};
+
+class timeout_member {
+		int duration;
+		time_t time_stamp;
+		pid_t pid;
+		string cmd_string;
+	public:
+		timeout_member(int d, time_t t, pid_t p, string s): 
+		duration(d), time_stamp(t), pid(p), cmd_string(s){}
+		
+		~timeout_member() = default;
+		
+		int getDuration(){
+			return this->duration;
+		}
+		
+		time_t getTimeStamp(){
+			return this->time_stamp;
+		}
+		
+		pid_t getPid(){
+			return this->pid;
+		}
+		
+		void setDuration(int& i){
+			this->duration = i;
+		}
+		
+		void setTimeStamp(time_t& t){
+			this->time_stamp = t;
+		}
+		
+		void setPid(pid_t& p){
+			this->pid = p;
+		}
+		string getCmdString(){
+			return this->cmd_string;
+		}
+	};
+
+class TimeoutCommand : public Command {
+	string cmd_string;
+public:
+	TimeoutCommand(const char* cmd_line);
+	virtual ~TimeoutCommand() override = default;
+	void execute() override;
 };
 
 class BuiltInCommand : public Command {
@@ -279,8 +330,7 @@ class SmallShell {
   char prompt[80] = "smash";
   char *plastPwd = nullptr;
   bool is_forked = false;
-
-  
+  vector<timeout_member*> timeout_vector;
   SmallShell();
  public:
   int* waitForPid = nullptr;
@@ -333,6 +383,12 @@ class SmallShell {
   }
   void setIsForked(bool b){
 	  this->is_forked = b;
+  }
+  vector<timeout_member*> getTimeoutVector(){
+	  return this->timeout_vector;
+  }
+  void setTimeoutVector(vector<timeout_member*> x){
+	 this->timeout_vector=x;
   }
   // TODO: add extra methods as needed
 };

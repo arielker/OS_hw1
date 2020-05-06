@@ -14,7 +14,11 @@ int main(int argc, char* argv[]) {
     }
 
     //TODO: setup sig alarm handler
-
+	struct sigaction a = {{0}};
+	a.sa_handler = alarmHandler;
+	a.sa_flags = SA_RESTART;
+	sigaction(SIGALRM, &a, nullptr);
+	
     SmallShell& smash = SmallShell::getInstance();
     while(true) {
 		smash.setCurrentFgPid(getpid()); //SETS CURRENT FG PID TO SMASH PID EVERY CYCLE!
